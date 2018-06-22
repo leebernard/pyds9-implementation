@@ -1,6 +1,6 @@
 # a function for parsing the region info pulled from DS9 by pyds9's access routines
 
-# pull a sample region
+# pulls all regions into a list. 1st entry on the list is the frame name
 import pyds9
 import re
 import numpy as np
@@ -23,6 +23,10 @@ str_list = pattern.findall(raw_string)
 # remove meta-meta data, first two entries
 del str_list[0:2]
 
+# failure condition: no regions selected
+if not str_list:
+    print('No region selected')
+    exit()
 # yank format
 region_format = str_list.pop(0)
 
@@ -37,12 +41,14 @@ for str in str_list:
 # retrieve frame data
 frame_data = ds9.get_arr2np()
 
+frame_name = 'current frame'
 
+regions = [frame_name]
 # parse the meta data string
 
 for str in str_list:
-    if re.match('box',str_):
-        print('Region resolved')
+    if re.match('box',str):
+
         pattern = re.compile('\d+')
 
         region_def = pattern.findall(str)
@@ -60,7 +66,10 @@ for str in str_list:
         ymax = ymin + height
 
         # pull current region
-        current_region = frame_data[ymin:ymax, xmin:xmax]
+        regions.append(frame_data[ymin:ymax, xmin:xmax])
+
+        print('Region resolved')
+
 
 
     else:
