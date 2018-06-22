@@ -1,7 +1,8 @@
 
 
 # a function for parsing the region info pulled from DS9 by pyds9's access routines
-# this function returns the definition of the regions that are selected in DS9 as a list
+# this function returns the definition of the regions that are selected in DS9 as a list. uses image format for
+# definitions
 def parse_regions():
 
     # pulls all regions into a list. 1st entry on the list is the frame name
