@@ -34,34 +34,38 @@ for str in str_list:
      print(str)
 
 
-frame_data = ds9.get_arr2np()
-# parse the meta data string
-n=0
-if re.match('box',str_list[n]):
-    print('Region resolved')
-    pattern = re.compile('\d+')
-
-    region_def = pattern.findall(str_list[0])
-
-    # region definition: orgin is lower left, given as x and y coord, with a width and a height
-    x_coord = int(region_def[0])
-    y_coord = int(region_def[1])
-    width = int(region_def[2])
-    height = int(region_def[3])
-
-    xmin = x_coord
-    xmax = xmin + width
-
-    ymin = y_coord
-    ymax = ymin + height
-
-    # pull current region
-    current_region = frame_data[ymin:ymax, xmin:xmax]
-
-
-else:
-    print('Region is not a box!')  # error condition
 # retrieve frame data
+frame_data = ds9.get_arr2np()
+
+
+# parse the meta data string
+
+for str in str_list:
+    if re.match('box',str_):
+        print('Region resolved')
+        pattern = re.compile('\d+')
+
+        region_def = pattern.findall(str)
+
+        # region definition: orgin is lower left, given as x and y coord, with a width and a height
+        x_coord = int(region_def[0])
+        y_coord = int(region_def[1])
+        width = int(region_def[2])
+        height = int(region_def[3])
+
+        xmin = x_coord
+        xmax = xmin + width
+
+        ymin = y_coord
+        ymax = ymin + height
+
+        # pull current region
+        current_region = frame_data[ymin:ymax, xmin:xmax]
+
+
+    else:
+        print('Region is not a box!')  # error condition
+
 
 
 
