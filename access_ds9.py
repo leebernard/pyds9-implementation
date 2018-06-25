@@ -1,10 +1,25 @@
 # test space for learning to use pyds9
 
 import pyds9 as ds9
+from astropy.visualization import SqrtStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
+import matplotlib.pyplot as plt
 
 # show targets
 print('ds9 target instance')
 print(ds9.ds9_targets())
+
+# pull the region data
+from parse_regions import parse_regions
+
+region_data = parse_regions()
+region1 = region_data[0]
+
+norm = ImageNormalize(stretch=SqrtStretch())
+plt.figure()
+plt.imshow(region1.data, norm=norm, origin='lower', cmap='viridis')
+plt.show()
+
 
 # need to have an instance of ds9 running
 # define the ds9 object.  Calls class DS9
@@ -28,3 +43,6 @@ d.get('regions selected')
 
 # select all defined regions
 d.set('regions select all')
+
+
+
