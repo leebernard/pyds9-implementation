@@ -1,9 +1,11 @@
 
 
-# a function for parsing the region info pulled from DS9 by pyds9's access routines
-# this function returns the definition of the regions that are selected in DS9 as a list. uses image for
-# definitions
-# by default returns the region data, this can be turned off
+# a function for parsing the region info pulled from SAOImage DS9 by pyds9's access routines
+# this function returns a list of region objects.
+# Each object has the DS9 canonical definition of the region, the array indices of the region, and the region data
+# for memory/runtime management concerns, the region data feature can be suppressed by setting the optional argument
+# get_data=False. This prevents the function from accessing the data held in DS9, significantly decreasing the resource
+# consumption.
 def parse_regions(get_data=True):
 
     # pulls all regions into a list. 1st entry on the list is the frame name
@@ -36,7 +38,7 @@ def parse_regions(get_data=True):
     # failure condition: no regions selected
     try:
         # yank format
-        region_format = str_list.pop(0)
+        region_system = str_list.pop(0)
     except IndexError:
         print('No region selected in DS9. Please select a region')
         return 1
@@ -53,8 +55,8 @@ def parse_regions(get_data=True):
         pass
 
     # print meta data
-    print('Meta data format:')
-    print(region_format)
+    print('Region Coordinate system:')
+    print(region_system)
     print('Selected Regions:')
 
     # parse the meta data string
@@ -74,7 +76,7 @@ def parse_regions(get_data=True):
             current_region = Region()
 
             # region format
-            current_region.format = region_format
+            current_region.format = region_system
 
             # region definition: orgin is lower left, given as x and y coord, with a width and a height
             x_coord = int(region_def[0])
