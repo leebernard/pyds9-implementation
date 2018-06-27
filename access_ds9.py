@@ -10,7 +10,7 @@ print('ds9 target instance')
 print(ds9.ds9_targets())
 
 # pull the region data
-from parse_regions import parse_regions
+from get_regions import parse_regions
 
 region_data = parse_regions()
 region1 = region_data[0]
@@ -24,6 +24,10 @@ plt.show()
 # need to have an instance of ds9 running
 # define the ds9 object.  Calls class DS9
 d = ds9.DS9()
+
+# open file
+d.set('file /home/lee/Documents/k4m_160319_101212_ori.fits.fz[im1]')
+
 
 # show the open file in the target instance of ds9
 print(d.get('file'))
