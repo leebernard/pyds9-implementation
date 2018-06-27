@@ -1,17 +1,17 @@
 
 
+# a function for parsing the region info pulled from SAOImage DS9 by pyds9's access routines
 # this function returns a list of region objects.
 # Each object has the DS9 canonical definition of the region, the array indices of the region, and the region data
 # for memory/runtime management concerns, the region data feature can be suppressed by setting the optional argument
 # get_data=False. This prevents the function from accessing the data held in DS9, significantly decreasing the resource
 # consumption.
-def parse_regions(get_data=True):
-    """Function for parsing the region info pulled from SAOImage DS9 by pyds9's access routines"""
+def get_regions(get_data=True):
+
     # pulls all regions into a list. 1st entry on the list is the frame name
     import pyds9
     import re
     # import numpy as np
-
 
     ds9 = pyds9.DS9()
 
@@ -67,7 +67,8 @@ def parse_regions(get_data=True):
 
     for region_str in str_list:
         print(region_str)  # print the region currently being parsed
-        if re.match('box', region_str):
+        try:
+            re.match('box', region_str)
 
             region_def = pattern.findall(region_str)
 
@@ -113,7 +114,7 @@ def parse_regions(get_data=True):
 
 
 
-        else:
+        except:
             print('Region is not a box!')  # error condition
     return regions
 

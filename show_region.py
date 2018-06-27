@@ -10,7 +10,7 @@ print('ds9 target instance')
 print(ds9.ds9_targets())
 
 # pull the region data
-from parse_regions import parse_regions
+from get_regions import parse_regions
 
 region_data = parse_regions()
 region1 = region_data[0]
