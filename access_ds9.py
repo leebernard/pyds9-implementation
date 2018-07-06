@@ -4,7 +4,7 @@ import pyds9 as ds9
 from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import matplotlib.pyplot as plt
-
+from ccd_tools import get_regions
 
 # check if ds9 is accesible
 if not ds9.ds9_targets():
@@ -17,8 +17,6 @@ print('ds9 target instance')
 print(ds9.ds9_targets())
 
 # pull the region data
-from get_regions import get_regions
-
 region_data = get_regions()
 region1 = region_data[0]
 

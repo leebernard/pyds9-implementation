@@ -1,6 +1,5 @@
 
 
-
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
     """Takes a header data unit, find the bias data from BIASSEC, and performs bias calculations and subtraction.
 
@@ -162,7 +161,6 @@ def get_regions(get_data=True):
         frame_data = ds9.get_arr2np()
 
     # frame_name = 'current frame'
-
 
     class Region:
         """
