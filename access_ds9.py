@@ -5,14 +5,21 @@ from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import matplotlib.pyplot as plt
 
+
+# check if ds9 is accesible
+if not ds9.ds9_targets():
+    input('DS9 target not found. Please start DS9, then press enter')
+
+
+
 # show targets
 print('ds9 target instance')
 print(ds9.ds9_targets())
 
 # pull the region data
-from get_regions import parse_regions
+from get_regions import get_regions
 
-region_data = parse_regions()
+region_data = get_regions()
 region1 = region_data[0]
 
 norm = ImageNormalize(stretch=SqrtStretch())
