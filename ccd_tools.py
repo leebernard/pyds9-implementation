@@ -1,5 +1,50 @@
 
 
+class Region:
+    """
+    This class is for convenient packaging of the region data.
+
+    For example, (self.xmin, self.ymin) gives the array location of lower left corner of region in the image data
+
+
+    Attributes
+    ----------
+    x_coord: float
+        x coordinate of the region center
+    y_coord: float
+        y coordinate of the region center
+    width: float
+        width of the region
+    height: float
+        height of the region
+    xmin: int
+        x coordinate of the lower left corner
+    xmax: int
+        x coordinate of the upper right corner
+    ymin: int
+        y coordinate of the lower left corner
+    ymax: int
+        y coordinate of the upper right corner
+    data: int, optional
+        data array of the defined region, pulled directly from SAOImage DS9. This can be disabled by the get_data
+        flag
+    """
+    def __init__(self):
+        # set data members so that if any are not being used they return none
+
+        self.x_coord = None
+        self.y_coord = None
+        self.width = None
+        self.height = None
+
+        self.xmin = None
+        self.xmax = None
+        self.ymin = None
+        self.ymax = None
+
+        self.data = None
+
+
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
     """Takes a header data unit, find the bias data from BIASSEC, and performs bias calculations and subtraction.
 
@@ -7,9 +52,10 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
     ----------
     HDU : fits header data unit
         Image data stored in a fits file
-    bias_sec : tuple int, optional
+    bias_sec : 4-tuple of int, optional
         defines the area of the frame to be used to calculate the bias. If not specified, determines the bias from the
         header definition
+
     Returns
     -------
     output_im : numpy array
@@ -71,8 +117,8 @@ def background_subtract(im_data):
     im_data : numpy array
         requires an image data array
 
-    returns
-    ------
+    Returns
+    -------
     output_im: numpy array
         The background subtracted data.
     mask: numpy array bool
@@ -102,7 +148,7 @@ def background_subtract(im_data):
 
 
 
-def get_regions(get_data=True):
+def get_regions_from_DS9(get_data=True, ds9=None):
     """a function for importing the region info from SAOImage DS9 by pyds9's access routines.
 
     Each object has the DS9 canonical definition of the region, the array indices of the region, and the region data
@@ -114,6 +160,9 @@ def get_regions(get_data=True):
     ----------
     get_data: bool, optional
         sets whether or not to include the data of the region
+    ds9: DS9 object, optional
+        Gives the function a ds9 object to pull the regions from. If none is indicated, creates an DS9 object using
+        default methods.
 
     Returns
     -------
@@ -125,8 +174,10 @@ def get_regions(get_data=True):
     import re
     # import numpy as np
 
+    # if ds9 is not specified, create a ds9 object
+    if not ds9:
+        ds9 = pyds9.DS9()
 
-    ds9 = pyds9.DS9()
 
     # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
     # image format is required to properly index the data array.
@@ -162,42 +213,6 @@ def get_regions(get_data=True):
 
     # frame_name = 'current frame'
 
-    class Region:
-        """
-        This class is for convenient packaging of the region data.
-
-        quick guide
-        -----------
-        self.xmin, self.ymin:
-            gives array location of lower left corner of region
-        self.xmax, self.ymax:
-            gives array location of upper right corner of region
-        self.data:
-            data array selected by region
-
-        Attributes
-        ----------
-        x_coord: float
-            x coordinate of the region center
-        y_coord: float
-            y coordinate of the region center
-        width: float
-            width of the region
-        height: float
-            height of the region
-        xmin: int
-            x coordinate of the lower left corner
-        xmax: int
-            x coordinate of the upper right corner
-        ymin: int
-            y coordinate of the lower left corner
-        ymax: int
-            y coordinate of the upper right corner
-        data: int, optional
-            data array of the defined region, pulled directly from SAOImage DS9. This can be disabled by the get_data
-            flag
-        """
-        pass
 
     # print meta data
     print('Region Coordinate system:')

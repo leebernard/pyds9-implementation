@@ -16,7 +16,6 @@ def region_mean():
         List of the mean values of the regions selected in DS9
     """
 
-
     region_data_list = [region.data for region in get_regions()]
 
     region_mean_list = [np.mean(data) for data in region_data_list]
@@ -69,3 +68,12 @@ def sort_regions(region_list):
 
 def print_region_def(region_list):
     [print(region.region_def) for region in region_list]
+
+
+def region_stats(sigma_clip_=False, mask_sources=False, mask=None):
+    if mask_sources:
+        pass# generate mask
+    if sigma_clip:
+        pass# return sigma clipped statistics, with mask = mask
+
+
