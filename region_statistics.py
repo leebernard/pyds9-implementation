@@ -3,9 +3,43 @@
 """This file is for developing region statistical tools
 """
 import numpy as np
-from ccd_tools import get_regions
+from ccd_tools import *
+# from ccd_tools import get_regions_from_ds9
 from astropy.stats import sigma_clip, sigma_clipped_stats
+# make sure to fix the implicit import
 
+
+def get_single_region_from_ds9(get_data=True, ds9=None):
+    """This function gets the first single valid box region selected in ds9
+
+    """
+    import pyds9
+    import re
+
+    # if a ds9 target is not specified, make one
+    if not ds9:
+        ds9 = pyds9.DS9()
+
+    # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
+    # image format is required to properly index the data array.
+    ds9.set('regions format ds9')
+    ds9.set('regions system image')
+
+    # get selected regions info
+    raw_string = ds9.get('regions selected')
+    print(raw_string)
+
+    # transform string into list that is organized by lines
+    pattern = re.compile('.+')
+    str_list = pattern.findall(raw_string)
+
+    try:
+        while not re.match('box', str_list[0]):
+            if re.match('# tile', str_list[0]):
+                print('')
+            print(str_list.pop(0))
+    except IndexError:
+        message = 'No valid region selected in DS9. Please select a valid box region.'
 
 def region_mean():
     """Calculates the mean of the selected regions in DS9
@@ -16,7 +50,7 @@ def region_mean():
         List of the mean values of the regions selected in DS9
     """
 
-    region_data_list = [region.data for region in get_regions()]
+    region_data_list = [region.data for region in get_regions_from_ds9()]
 
     region_mean_list = [np.mean(data) for data in region_data_list]
 
@@ -31,7 +65,7 @@ def region_median():
     region_median_list: list
         List of the median values of selected regions
     """
-    region_data_list = [region.data for region in get_regions()]
+    region_data_list = [region.data for region in get_regions_from_ds9()]
 
     region_median_list = [np.median(data) for data in region_data_list]
 
@@ -46,7 +80,7 @@ def region_std():
     region_std_list: list
         List of standard deviation values of the selected regions
     """
-    region_data_list = [region.data for region in get_regions()]
+    region_data_list = [region.data for region in get_regions_from_ds9()]
 
     region_std_list = [np.std(data) for data in region_data_list]
 

@@ -108,7 +108,6 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
     return output_im
 
 
-
 def background_subtract(im_data):
     """calculates background using a mask routine from photutils.
 
@@ -147,8 +146,7 @@ def background_subtract(im_data):
     return output_im, mask, std
 
 
-
-def get_regions_from_DS9(get_data=True, ds9=None):
+def get_regions_from_ds9(get_data=True, ds9=None):
     """a function for importing the region info from SAOImage DS9 by pyds9's access routines.
 
     Each object has the DS9 canonical definition of the region, the array indices of the region, and the region data
