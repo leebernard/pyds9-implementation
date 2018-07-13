@@ -43,6 +43,7 @@ class Region:
         self.ymax = None
 
         self.data = None
+        # add sections for bias and background values
 
 
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
