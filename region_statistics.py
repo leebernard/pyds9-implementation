@@ -4,12 +4,12 @@
 """
 import numpy as np
 from ccd_tools import *
-# from ccd_tools import get_regions_from_ds9
+# from ccd_tools import get_multiple_ds9_regions
 from astropy.stats import sigma_clip, sigma_clipped_stats
 # make sure to fix the implicit import
 
 
-def get_single_region_from_ds9(get_data=True, ds9=None):
+def get_ds9_region(get_data=True, ds9=None, tiled=False):
     """This function gets the first single valid box region selected in ds9
 
     """
@@ -36,10 +36,50 @@ def get_single_region_from_ds9(get_data=True, ds9=None):
     try:
         while not re.match('box', str_list[0]):
             if re.match('# tile', str_list[0]):
-                print('')
+                print('Tile mode detected')
+                tiled = True
+
             print(str_list.pop(0))
     except IndexError:
-        message = 'No valid region selected in DS9. Please select a valid box region.'
+        message = 'No valid region found. Please select a valid box region.'
+        print(message)
+
+    # parse the meta data string
+    # pattern is all sequences of digits that may or may not contain a period
+    pattern = re.compile('\d+\.?\d*')
+    region_def = pattern.findall(str_list[0])  # should probably add an exception test here
+
+
+    # make a region object to hold all the data
+    current_region = Region()
+
+    # region definition: origin is lower left, given as x and y coord, with a width and a height
+    x_coord = float(region_def[0])
+    y_coord = float(region_def[1])
+    width = float(region_def[2])
+    height = float(region_def[3])
+
+    # region slicing data
+    xmin = int(x_coord - width / 2)
+    xmax = int(x_coord + width / 2)
+
+    ymin = int(y_coord - height / 2)
+    ymax = int(y_coord + height / 2)
+
+    if get_data:
+        frame_data = ds9.get_arr2np()
+        current_region.data = frame_data[ymin:ymax, xmin:xmax]
+
+    # package all the meta data
+    current_region.x_coord = x_coord
+    current_region.y_coord = y_coord
+    current_region.width = width
+    current_region.height = height
+
+    current_region.xmin = xmin
+    current_region.xmax = xmax
+    current_region.ymin = ymin
+    current_region.ymax = ymax
 
 def region_mean():
     """Calculates the mean of the selected regions in DS9
@@ -50,7 +90,7 @@ def region_mean():
         List of the mean values of the regions selected in DS9
     """
 
-    region_data_list = [region.data for region in get_regions_from_ds9()]
+    region_data_list = [region.data for region in get_multiple_ds9_regions()]
 
     region_mean_list = [np.mean(data) for data in region_data_list]
 
@@ -65,7 +105,7 @@ def region_median():
     region_median_list: list
         List of the median values of selected regions
     """
-    region_data_list = [region.data for region in get_regions_from_ds9()]
+    region_data_list = [region.data for region in get_multiple_ds9_regions()]
 
     region_median_list = [np.median(data) for data in region_data_list]
 
@@ -80,7 +120,7 @@ def region_std():
     region_std_list: list
         List of standard deviation values of the selected regions
     """
-    region_data_list = [region.data for region in get_regions_from_ds9()]
+    region_data_list = [region.data for region in get_multiple_ds9_regions()]
 
     region_std_list = [np.std(data) for data in region_data_list]
 

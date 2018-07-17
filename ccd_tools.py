@@ -32,6 +32,10 @@ class Region:
     def __init__(self):
         # set data members so that if any are not being used they return none
 
+        # important meta data
+        self.region_def = None
+        self.source_file = None
+
         self.x_coord = None
         self.y_coord = None
         self.width = None
@@ -44,6 +48,8 @@ class Region:
 
         self.data = None
         # add sections for bias and background values
+        # add stats object
+
 
 
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
@@ -147,7 +153,7 @@ def background_subtract(im_data):
     return output_im, mask, std
 
 
-def get_regions_from_ds9(get_data=True, ds9=None):
+def get_multiple_ds9_regions(get_data=True, ds9=None):
     """a function for importing the region info from SAOImage DS9 by pyds9's access routines.
 
     Each object has the DS9 canonical definition of the region, the array indices of the region, and the region data
@@ -219,7 +225,7 @@ def get_regions_from_ds9(get_data=True, ds9=None):
     print('Selected Regions:')
 
     # parse the meta data string
-    # pattern is all sequences of digits that are terminated by a period
+    # pattern is all sequences of digits that may or may not contain a period
     pattern = re.compile('\d+\.?\d*')
 
     # The list for holding the region data. This is returned
@@ -240,7 +246,7 @@ def get_regions_from_ds9(get_data=True, ds9=None):
             # region system
             current_region.system = region_system
 
-            # region definition: orgin is lower left, given as x and y coord, with a width and a height
+            # region definition: origin is lower left, given as x and y coord, with a width and a height
             x_coord = float(region_def[0])
             y_coord = float(region_def[1])
             width = float(region_def[2])
