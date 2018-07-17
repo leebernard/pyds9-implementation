@@ -1,14 +1,28 @@
 
 
+# import needed packages
+import numpy as np
+# from astropy.io import fits
+
+import re
+from astropy.stats import sigma_clipped_stats
+
+
 class Region:
     """
     This class is for convenient packaging of the region data.
 
-    For example, (self.xmin, self.ymin) gives the array location of lower left corner of region in the image data
+    For example, (self.xmin, self.ymin) gives the array location of lower left corner of region in the image data.
+
 
 
     Attributes
     ----------
+    region_def: string
+        String definition of the region. This can be the region as defined in DS9, or any string definition the user
+        decides.
+    source_file: string
+        String containing the name and path of the file that the region originated from.
     x_coord: float
         x coordinate of the region center
     y_coord: float
@@ -29,6 +43,7 @@ class Region:
         data array of the defined region, pulled directly from SAOImage DS9. This can be disabled by the get_data
         flag
     """
+
     def __init__(self):
         # set data members so that if any are not being used they return none
 
@@ -47,8 +62,30 @@ class Region:
         self.ymax = None
 
         self.data = None
-        # add sections for bias and background values
-        # add stats object
+        self.bias_value = None
+        self.bias_dev = None
+
+    def mean(self):
+
+        return np.mean(self.data)
+
+    def median(self):
+
+        return np.median(self.data)
+
+    def std(self):
+
+        return np.std(self.data)
+
+    def stats(self, sigma_clip=False, **kwargs):
+        if sigma_clip:
+            return sigma_clipped_stats(self.data, **kwargs)
+
+        else:
+            return self.mean(), self.median(), self.std()
+
+
+
 
 
 
@@ -69,17 +106,13 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
         the image data array after bias subtraction
 
     """
-    # import needed packages
-    # import numpy as np
-    # from astropy.io import fits
-    import re
-    from astropy.stats import sigma_clipped_stats
+
 
     # Store the data from the HDU argument
     im_data = HDU.data
 
     # check if parameters give the bias section, if not, automatically get it
-    if not bias_sec:
+    if bias_sec is None:
         # pull the bias section information from the header readout.
         Bias_Sec = HDU.header['BIASSEC']
         print('Bias Section is ' + Bias_Sec)
@@ -112,6 +145,7 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
     # calculate and print the bias area statistics, for reference.  DISABLED
     # print('Bias area after subtraction \n Mean: ')
     output_im = im_data - bias_mean
+
     return output_im
 
 
