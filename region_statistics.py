@@ -1,8 +1,11 @@
 
 
-"""This file is for developing region statistical tools
+"""
+This file is for developing region statistical tools
 """
 import numpy as np
+import pyds9
+import re
 from ccd_tools import *
 # from ccd_tools import get_multiple_ds9_regions
 from astropy.stats import sigma_clip, sigma_clipped_stats
@@ -10,23 +13,23 @@ from astropy.stats import sigma_clip, sigma_clipped_stats
 
 
 def get_ds9_region(get_data=True, ds9=None, tiled=False):
-    """This function gets the first single valid box region selected in ds9
+    """
+    This function gets the first single valid box region selected in ds9
 
     Parameters
     ----------
     get_data: bool, optional
-        flag to disable the data retrieval from DS9
+        If True, does not retrieve data from DS9. This to reduce the resource
+        requirements if data is being handled separately.
     ds9: DS9 object, optional
         optional parameter to specify a DS9 target
 
     Returns
     -------
-    current_region: Region object
-
+    region: Region object
 
     """
-    import pyds9
-    import re
+
 
     # check if ds9 is accesible
     if pyds9.ds9_targets() is None:
@@ -34,7 +37,12 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
 
     # if a ds9 target is not specified, make one
     if ds9 is None:
-        ds9 = pyds9.DS9()
+        try:
+            ds9 = pyds9.DS9()
+        except ValueError:
+            print('Specify a target DS9() instance to retrieve the region from. '
+                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
+            raise
 
     # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
     # image format is required to properly index the data array.
@@ -67,7 +75,7 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
 
 
     # make a region object to hold all the data
-    current_region = Region()
+    region = Region()
 
     # region definition: origin is lower left, given as x and y coord, with a width and a height
     x_coord = float(region_def[0])
@@ -84,20 +92,25 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
 
     if get_data:
         with ds9.get_arr2np() as frame_data:
-            current_region.data = frame_data[ymin:ymax, xmin:xmax]
+
+            region.data = frame_data[ymin:ymax, xmin:xmax]
+
 
     # package all the meta data
-    current_region.x_coord = x_coord
-    current_region.y_coord = y_coord
-    current_region.width = width
-    current_region.height = height
+    region.x_coord = x_coord
+    region.y_coord = y_coord
+    region.width = width
+    region.height = height
 
-    current_region.xmin = xmin
-    current_region.xmax = xmax
-    current_region.ymin = ymin
-    current_region.ymax = ymax
+    region.xmin = xmin
+    region.xmax = xmax
+    region.ymin = ymin
+    region.ymax = ymax
 
-    return current_region
+    region.source_file = ds9.get('file')
+    region.region_def = raw_string
+
+    return region
 
 
 def region_stats(self, sigma_clip_=False, **kwargs):

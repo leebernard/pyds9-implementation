@@ -2,8 +2,8 @@
 
 # import needed packages
 import numpy as np
-# from astropy.io import fits
-
+from astropy.io import fits
+import pyds9
 import re
 from astropy.stats import sigma_clipped_stats
 
@@ -13,8 +13,6 @@ class Region:
     This class is for convenient packaging of the region data.
 
     For example, (self.xmin, self.ymin) gives the array location of lower left corner of region in the image data.
-
-
 
     Attributes
     ----------
@@ -40,8 +38,15 @@ class Region:
     ymax: int
         y coordinate of the upper right corner
     data: int, optional
-        data array of the defined region, pulled directly from SAOImage DS9. This can be disabled by the get_data
-        flag
+        data array of the defined region.
+    bias: number or array
+        A number representing the bias level of the region, or an array
+        of the same size as data, containing bias per pixel values.
+    bias_dev: number or array
+        The standard deviations for the value(s) in bias
+    Methods
+    -------
+
     """
 
     def __init__(self):
@@ -62,43 +67,329 @@ class Region:
         self.ymax = None
 
         self.data = None
-        self.bias_value = None
+        self.bias = None
         self.bias_dev = None
 
-    def mean(self):
+    # stats block of code
+    def mean(self, **kwargs):
+        """
+        Calculates the mean of the self.data attribute,
 
-        return np.mean(self.data)
+        Parameters
+        ----------
+        kwargs: dict
+            Keywords to be passed to np.mean.
+        Returns
+        -------
+        mean: float
+            Mean of data attribute.
+        """
+        return np.mean(self.data, **kwargs)
 
-    def median(self):
+    def median(self, **kwargs):
+        """
+        Calculates the median of the self.data attribute
 
-        return np.median(self.data)
+        Parameters
+        ----------
+        kwargs: dict
+            Keyword arguments to be passed to np.median.
 
-    def std(self):
+        Returns
+        -------
+        median: float
+            The median of the data attribute.
+        """
+        return np.median(self.data, **kwargs)
 
-        return np.std(self.data)
+    def std(self, **kwargs):
+        """
+        Calculates the standard deviation of the self.data attribute
 
-    def stats(self, sigma_clip=False, **kwargs):
+        Parameters
+        ----------
+        kwargs: dict
+            keywords to be passed to np.std
+
+        Returns
+        -------
+        stddev: float
+            the standard deviation of the data attribute
+        """
+        return np.std(self.data, **kwargs)
+
+    def stats(self, sigma_clip=False, mask=None, **kwargs):
+        """
+        Calculates statistics of the data attribute, with options for masking
+        sources and sigma clipping.
+
+        Parameters
+        ----------
+        sigma_clip: bool, optional
+            If True, returns sigma clipped statistics.
+        mask: np.ndarray (bool), optional
+            Boolean array of the same shape as self.data. Entries that are set to
+            True are ignored in statistical calculations.
+        kwargs: dict
+            Keyword argument
+        Returns
+        -------
+
+        """
         if sigma_clip:
-            return sigma_clipped_stats(self.data, **kwargs)
+            return sigma_clipped_stats(self.data, mask, **kwargs)
 
         else:
-            return self.mean(), self.median(), self.std()
+            masked_data = np.ma.array(self.data, mask)
+            return np.mean(masked_data), np.median(masked_data), np.std(masked_data)
 
 
+def get_ds9_region(get_data=True, ds9=None, tiled=False):
+    """
+    This function gets the first single valid box region selected in ds9
+
+    Parameters
+    ----------
+    get_data: bool, optional
+        If True, does not retrieve data from DS9. This to reduce the resource
+        requirements if data is being handled separately.
+    ds9: DS9 object, optional
+        optional parameter to specify a DS9 target
+
+    Returns
+    -------
+    region: Region object
+
+    """
+
+    # check if ds9 is accesible
+    if pyds9.ds9_targets() is None:
+        input('DS9 target not found. Please start/restart DS9, then press enter')
+
+    # if a ds9 target is not specified, make one
+    if ds9 is None:
+        try:
+            ds9 = pyds9.DS9()
+        except ValueError:
+            print('Specify a target DS9() instance to retrieve the region from. '
+                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
+            raise
+
+    # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
+    # image format is required to properly index the data array.
+    ds9.set('regions format ds9')
+    ds9.set('regions system image')
+
+    # get selected region info
+    raw_string = ds9.get('regions selected')
+    print(raw_string)
+
+    # transform string into list that is organized by lines
+    pattern = re.compile('.+')
+    str_list = pattern.findall(raw_string)
+
+    try:
+        while not re.match('box', str_list[0]):
+            if re.match('# tile', str_list[0]):
+                print('Tile mode detected')
+                tiled = True
+
+            print(str_list.pop(0))
+    except IndexError:
+        message = 'No valid region found. Please select a valid box region.'
+        print(message)
+
+    # parse the meta data string
+    # pattern is all sequences of digits that may or may not contain a period
+    pattern = re.compile('\d+\.?\d*')
+    region_def = pattern.findall(str_list[0])  # should probably add an exception test here
+
+    # make a region object to hold all the data
+    region = Region()
+
+    # region definition: origin is lower left, given as x and y coord, with a width and a height
+    x_coord = float(region_def[0])
+    y_coord = float(region_def[1])
+    width = float(region_def[2])
+    height = float(region_def[3])
+
+    # region slicing data
+    xmin = int(x_coord - width / 2)
+    xmax = int(x_coord + width / 2)
+
+    ymin = int(y_coord - height / 2)
+    ymax = int(y_coord + height / 2)
+
+    if get_data:
+        frame_data = ds9.get_arr2np()  # as frame_data:
+        region.data = frame_data[ymin:ymax, xmin:xmax]
+
+    # package all the meta data
+    region.x_coord = x_coord
+    region.y_coord = y_coord
+    region.width = width
+    region.height = height
+
+    region.xmin = xmin
+    region.xmax = xmax
+    region.ymin = ymin
+    region.ymax = ymax
+
+    region.source_file = ds9.get()
+    region.region_def = raw_string
+
+    return region
+
+
+def make_source_mask(indata, snr=2, npixels=5, **kwargs):
+    """
+    Wrapper for the make_source_mask from photutils. Makes a mask corresponding
+    to any flux sources in the data.
+
+    make_source_mask is imported as part of the function call, so if the
+    photutils package is not installed, or broken, it does not break the rest
+    of this package.
+
+    Parameters
+    ----------
+    indata: array-like
+        2D image data array containing a flux source to be masked.
+    snr: float, optional
+        Signal to noise ratio threshold above background to consider a pixel as
+        being part of a source.
+    npixels: int, optional
+        Minimum number of continuous pixels that are above the threshold that
+        an object must have to be considered a source.
+    kwargs: dict
+        Keyword arguments for the make_source_mask function. See documentation
+        for photutils.
+
+    Returns
+    -------
+    bool_mask: ndarray, bool
+        A boolean mask that corresponds to the data input. Pixels that are part
+        of a source are set to True.
+    """
+    from photutils import make_source_mask
+
+    return make_source_mask(indata, snr, npixels, **kwargs)
+
+
+def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kwargs):
+    """
+    Calculates statistics on the background of the image data given
+
+    Parameters
+    ----------
+    indata: array-like
+        Data array of an image
+    mask: numpy.ndarray (bool), optional
+        A boolean mask with the same shape as data, where a True value
+        indicates the corresponding element of data is masked. Masked pixels
+        are excluded when computing the statistics.
+    mask_sources: bool, optional
+        If True, a source mask will be automatically generated using photutils.
+        To set options for mask generation, generate a mask seperately, then
+        pass it through the mask parameter.
+    sigma_clip: bool, optional
+        If True, sigma clipped statistics will be returned using the function
+        sigma_clipped_stats from astropy.stats
+    kwargs: dict
+        Keyword arguments to be passed to sigma_clipped_stats
+
+    Returns
+    -------
+    mean, median, stddev: float
+        the mean, median, and standard deviation of the background
+    """
+    # if no mask is specified, mask any sources
+    if mask_sources:
+        from photutils import make_source_mask
+        obj_mask = make_source_mask(indata)
+
+    # if both a mask is specified, and object masking is called for, combine the masks
+    if mask_sources and mask:
+        mask = mask + obj_mask
+
+    if sigma_clip:
+        return sigma_clipped_stats(indata, mask=mask, **kwargs)
+    else:
+        # mask the data. If no mask is specified, mask is None
+        masked_data = np.ma.array(indata, mask)
+        return np.mean(masked_data), np.median(masked_data), np.std(masked_data)
+
+
+def bias_from_ds9(ds9_target, bias_sec=None):
+    """
+    This function retrieves the bias section from a fits file loaded in DS9.
+
+
+    Parameters
+    ----------
+    ds9_target: DS9() instance
+        Target DS9 instance to retrieve the data from
+    bias_sec: array-like, optional
+        This must be a list, tuple, or array of four numbers, that define the
+        bias section of the image. The numbers can be ints, floats, or strings
+        that represent ints. If a float is given, it will be truncated
+        towards zero.
+
+    Returns
+    -------
+    bias_data: ndarray
+        Numpy array containing the pixel values of the bias section.
+    """
+    hdulist = ds9_target.get_pyfits()
+    hdulist.info()
+
+    # extract header data unit from list
+    hdu = hdulist[0]
+
+    if bias_sec is None:
+        # extract the bias definition
+        bias_str = hdu.header['BIASSEC']
+
+        print('Bias Section is ' + bias_str)
+        # print(type(bias_str))
+        # slice the string, for converting to int
+        pattern = re.compile('\d+')  # pattern for all decimal digits
+        # print(pattern.findall(bias_str))
+
+        # hold the result in an object
+        bias_sec = pattern.findall(bias_str)
+
+
+    xmin = int(bias_sec[0])
+    xmax = int(bias_sec[1])
+    ymin = int(bias_sec[2])
+    ymax = int(bias_sec[3])
+
+
+    im_data = hdu.data
+    bias_data = im_data[ymin:ymax, xmin:xmax]
+
+    return bias_data
 
 
 
 
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
-    """Takes a header data unit, find the bias data from BIASSEC, and performs bias calculations and subtraction.
+    """
+    Returns the bias subtracted data from a header data unit.
+
+    Takes a header data unit, and finds the mean of the bias section.
+    It then subtracts that mean from a copy of the image data, and returns
+    the result.
 
     Parameters
     ----------
     HDU : fits header data unit
         Image data stored in a fits file
-    bias_sec : 4-tuple of int, optional
-        defines the area of the frame to be used to calculate the bias. If not specified, determines the bias from the
-        header definition
+    bias_sec: array-like, optional
+        This must be a list, tuple, or array of four numbers, that define the
+        bias section of the image. The numbers can be ints, floats, or strings
+        that represent ints. If a float is given, it will be truncated
+        towards zero.
 
     Returns
     -------
@@ -172,7 +463,6 @@ def background_subtract(im_data):
 
     # Generate mask
     from photutils import make_source_mask
-    from astropy.stats import sigma_clipped_stats
     mask = make_source_mask(im_data, snr=2, npixels=5, dilate_size=11)
 
     # calculate bias using mean
