@@ -329,10 +329,11 @@ def bias_from_ds9(ds9_target, bias_sec=None):
     ds9_target: DS9() instance
         Target DS9 instance to retrieve the data from
     bias_sec: array-like, optional
-        This must be a list, tuple, or array of four numbers, that define the
+        This must be a list, tuple, or array of four numbers that define the
         bias section of the image. The numbers can be ints, floats, or strings
         that represent ints. If a float is given, it will be truncated
-        towards zero.
+        towards zero. If None, the bias section will be retrieved from the
+        header.
 
     Returns
     -------
@@ -358,13 +359,13 @@ def bias_from_ds9(ds9_target, bias_sec=None):
         # hold the result in an object
         bias_sec = pattern.findall(bias_str)
 
-
+    # typecast the indices to ints
     xmin = int(bias_sec[0])
     xmax = int(bias_sec[1])
     ymin = int(bias_sec[2])
     ymax = int(bias_sec[3])
 
-
+    # retrieve the slice of data corresponding to the bias section
     im_data = hdu.data
     bias_data = im_data[ymin:ymax, xmin:xmax]
 
