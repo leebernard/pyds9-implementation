@@ -236,7 +236,7 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
     region.ymin = ymin
     region.ymax = ymax
 
-    region.source_file = ds9.get()
+    region.source_file = ds9.get('file')
     region.region_def = raw_string
 
     return region
