@@ -2,7 +2,7 @@
 
 # import needed packages
 import numpy as np
-from astropy.io import fits
+# from astropy.io import fits
 import pyds9
 import re
 from astropy.stats import sigma_clipped_stats
@@ -140,7 +140,7 @@ class Region:
             return sigma_clipped_stats(self.data, mask, **kwargs)
 
         else:
-            masked_data = np.ma.array(self.data, mask)
+            masked_data = np.ma.array(self.data, mask=mask)
             return np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
 
@@ -318,8 +318,8 @@ def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kw
         return sigma_clipped_stats(indata, mask=mask, **kwargs)
     else:
         # mask the data. If no mask is specified, mask is None
-        masked_data = np.ma.array(indata, mask)
-        return np.mean(masked_data), np.median(masked_data), np.std(masked_data)
+        masked_data = np.ma.array(indata, mask=mask)
+        return np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
 
 def bias_from_ds9(ds9_target, bias_sec=None):
