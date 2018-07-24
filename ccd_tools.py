@@ -141,7 +141,7 @@ class Region:
 
         else:
             masked_data = np.ma.array(self.data, mask)
-            return np.mean(masked_data), np.median(masked_data), np.std(masked_data)
+            return np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
 
 def get_ds9_region(get_data=True, ds9=None, tiled=False):
@@ -198,6 +198,7 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
     except IndexError:
         message = 'No valid region found. Please select a valid box region.'
         print(message)
+        raise
 
     # parse the meta data string
     # pattern is all sequences of digits that may or may not contain a period
@@ -294,7 +295,7 @@ def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kw
     sigma_clip: bool, optional
         If True, sigma clipped statistics will be returned using the function
         sigma_clipped_stats from astropy.stats
-    kwargs: dict
+    kwargs: dict, optional
         Keyword arguments to be passed to sigma_clipped_stats
 
     Returns
@@ -306,10 +307,12 @@ def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kw
     if mask_sources:
         from photutils import make_source_mask
         obj_mask = make_source_mask(indata)
-
-    # if both a mask is specified, and object masking is called for, combine the masks
-    if mask_sources and mask:
-        mask = mask + obj_mask
+        # if both a mask is specified and object masking is called for, combine the masks
+        if mask_sources and mask:
+            mask = mask + obj_mask
+        # otherwise, mask is just the object mask
+        else:
+            mask = obj_mask
 
     if sigma_clip:
         return sigma_clipped_stats(indata, mask=mask, **kwargs)
@@ -372,7 +375,43 @@ def bias_from_ds9(ds9_target, bias_sec=None):
     return bias_data
 
 
+def background_subtract(im_data, mask=None, **kwargs):
+    """
+    Returns a background subtracted copy of image data.
 
+    Parameters
+    ----------
+    im_data : ndarray
+        requires an image data array
+    mask: ndarray (bool), optional
+        Boolean array the same size as im_data. Entries in im_data
+         corresponding to True values in mask will be ignored in
+         calculations.
+    kwargs: dict, optional
+        Keyword arguments to be passed to background_stats
+
+    Returns
+    -------
+    output_im: ndarray
+        The background subtracted data.
+    std: float
+        The standard deviation of the background
+
+    See Also
+    --------
+    background_stats: returns statistics on the background of image data
+    """
+
+    # calculate bias using mean
+    # clipped stats are used, just in case
+    mean, median, std = background_stats(im_data, mask=mask, **kwargs)
+    print('Background mean: ' + str(mean))
+    print('Background median: ' + str(median))
+    print('Background standerd deviation: ' + str(std))
+
+    output_im = im_data - mean
+
+    return output_im, std
 
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
     """
@@ -439,43 +478,6 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
     output_im = im_data - bias_mean
 
     return output_im
-
-
-def background_subtract(im_data):
-    """calculates background using a mask routine from photutils.
-
-    Parameters
-    ----------
-    im_data : numpy array
-        requires an image data array
-
-    Returns
-    -------
-    output_im: numpy array
-        The background subtracted data.
-    mask: numpy array bool
-        The mask used to shield the object
-    """
-    # import numpy as np
-    # from astropy.io import fits
-
-    # store the data from the HDU argument
-    # im_data = HDU.data
-
-    # Generate mask
-    from photutils import make_source_mask
-    mask = make_source_mask(im_data, snr=2, npixels=5, dilate_size=11)
-
-    # calculate bias using mean
-    # clipped stats are used, just in case
-    mean, median, std = sigma_clipped_stats(im_data, sigma=3.0, mask=mask)
-    print('Background mean: ' + str(mean))
-    print('Background median: ' + str(median))
-    print('Background standerd deviation: ' + str(std))
-
-    output_im = im_data - mean
-
-    return output_im, mask, std
 
 
 def get_multiple_ds9_regions(get_data=True, ds9=None):
