@@ -1,6 +1,9 @@
 
 
 # import needed packages
+from astropy.visualization import SqrtStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
+import matplotlib.pyplot as plt
 import warnings
 import numpy as np
 # from astropy.io import fits
@@ -527,6 +530,22 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
     output_im = im_data - bias_mean
 
     return output_im
+
+
+def display_data(imdata):
+    """
+    A wrapper for matplotlib.pyplot.imshow, for displaying image data.
+
+    Parameters
+    ----------
+    imdata: ndarray
+        image data array to be displayed
+    """
+    norm = ImageNormalize(stretch=SqrtStretch())
+    plt.figure()
+    plt.imshow(imdata, norm=norm, origin='lower', cmap='viridis')
+    plt.colorbar()
+    plt.show()
 
 
 def get_multiple_ds9_regions(get_data=True, ds9=None):
