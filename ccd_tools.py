@@ -116,8 +116,44 @@ class Region:
             print(f'StD: {stats[2]:.2f}')
             return stats
 
+    def sky_subtract(self, mask=None, **kwargs):
+        """
+        This function calculates the background subtracted data, and stores it in
+        the sky_sub attribute.
 
-def get_ds9_region(get_data=True, ds9=None, tiled=False):
+        Wrapper for background_subtract. If bias subtracted data is available, it
+        uses that. Otherwise, it uses data in the data attribute. If neither are
+        available, raises an exception.
+
+        Parameters
+        ----------
+        mask: numpy.ndarray (bool), optional
+            A boolean mask with the same shape as data, where a True value
+            indicates the corresponding element of data is masked. Masked pixels
+            are excluded when computing the statistics.
+        kwargs: dict, optional
+            Optional keywords for background_subtract
+
+        Raises
+        ------
+        ValueError
+            If both the data attribute and the bias_sub attribute are set to none.
+
+        See Also
+        --------
+        background_subtract: returns background subtracted data
+        """
+
+        if self.bias_sub is not None:
+            self.sky_sub = background_subtract(self.bias_sub, mask=mask, **kwargs)
+        elif self.data is not None:
+            self.sky_sub = background_subtract(self.data, mask=mask, **kwargs)
+        elif self.data is None:
+            message = 'Data attributes are unassigned'
+            raise ValueError(message)
+
+
+def get_ds9_region(get_data=True, ds9=None):
     """
     This function gets the first single valid box region selected in ds9, and
     returns it as a Region object.
@@ -169,9 +205,9 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
 
     try:
         while not re.match('box', str_list[0]):
-            if re.match('# tile', str_list[0]):
-                print('Tile mode detected')
-                tiled = True
+            # if re.match('# tile', str_list[0]):
+            #     print('Tile mode detected')
+            #     tiled = True
 
             print(str_list.pop(0))
     # if the loop runs through the whole string without finding a region, print a message
@@ -212,9 +248,10 @@ def get_ds9_region(get_data=True, ds9=None, tiled=False):
             # determine what the valid data region is
             pattern = re.compile('\d+')  # pattern for all decimal digits
             datasec = pattern.findall(hdu.header['DATASEC'])
+            # print('Data section: ', datasec)
 
         # if the selected region is outside the valid data range, throw a warning
-        if int(datasec[0]) < xmin or int(datasec[1] > xmax or int(datasec[2]) < ymin or int(datasec[3]) > ymax):
+        if int(datasec[0]) > xmin or int(datasec[1]) < xmax or int(datasec[2]) > ymin or int(datasec[3]) < ymax:
             message = 'Region definition exceeds valid data range. \n ' \
                       'This could be due to entering the bias region, or crossing frames.'
             warnings.warn(message, category=UserWarning)
@@ -309,7 +346,6 @@ def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kw
     """
     # if no mask is specified, mask any sources
     if mask_sources:
-        from photutils import make_source_mask
         obj_mask = make_source_mask(indata)
         # if both a mask is specified and object masking is called for, combine the masks
         if mask_sources and mask:
