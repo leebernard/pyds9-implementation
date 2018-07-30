@@ -41,22 +41,19 @@ class Region:
         y coordinate of the lower left corner
     ymax: int
         y coordinate of the upper right corner
-    data: ndarray
+    raw_data: ndarray
         Image data array of the defined region.
     bias_sub: ndarray
         Image data array of the defined region, after bias subtraction
     sky_sub: ndarray
         Image data array of the defined region, after background subtraction.
         This data may also be bias subtracted.
-    bias: number or array
-        A number representing the bias level of the region, or an array
-        of the same size as data, containing bias per pixel values.
-    bias_dev: number or array
-        The standard deviations for the value(s) in bias
+    bias_stats: tuple
+        Three numbers representing, in order: the bias region mean, median, and standard deviation
 
     Methods
     -------
-
+    sky_subtract: adds sky background subtracted data to the sky_sub attribute.
     """
 
     def __init__(self):
@@ -76,12 +73,12 @@ class Region:
         self.ymin = None
         self.ymax = None
 
-        self.data = None
+        self.raw_data = None
         self.bias_sub = None
         self.sky_sub = None
 
-        self.bias = None
-        self.bias_dev = None
+        self.bias_stats = None
+        self.sky_stats = None
 
 
     def stats(self, sigma_clip=False, mask=None, **kwargs):
@@ -103,28 +100,38 @@ class Region:
 
         """
         if sigma_clip:
-            stats = sigma_clipped_stats(self.data, mask, **kwargs)
-            print('Region Data Statistics:')
-            print(f'Mean: {stats[0]:.2f}')
-            print(f'Median: {stats[1]:.2f}')
-            print(f'Std: {stats[2]:.2f}')
-            return stats
-
+            mean, median, std = sigma_clipped_stats(self.raw_data, mask, **kwargs)
         else:
-            masked_data = np.ma.array(self.data, mask=mask)
-            stats = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
-            print('Region Data Statistics:')
-            print(f'Mean: {stats[0]:.2f}')
-            print(f'Median: {stats[1]:.2f}')
-            print(f'StD: {stats[2]:.2f}')
-            return stats
+            masked_data = np.ma.array(self.raw_data, mask=mask)
+            mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+
+        print('-----------------------')
+        print('Region Data Statistics:')
+        print(f'Mean: {mean:.2f}')
+        print(f'Median: {median:.2f}')
+        print(f'Std: {std:.2f}')
+        # if there are stats on the bias and sky background, print those also
+        if self.bias_stats:
+            print('---------------------')
+            print('Bias Data Statistics:')
+            print(f'Mean: {self.bias_stats[0]:.2f}')
+            print(f'Median: {self.bias_stats[1]:.2f}')
+            print(f'Std: {self.bias_stats[2]:.2f}')
+        if self.sky_stats:
+            print('---------------------')
+            print('Bias Data Statistics:')
+            print(f'Mean: {self.sky_stats[0]:.2f}')
+            print(f'Median: {self.sky_stats[1]:.2f}')
+            print(f'Std: {self.sky_stats[2]:.2f}')
+
+        return mean, median, std
 
     def sky_subtract(self, mask=None, **kwargs):
         """
         This function calculates the background subtracted data, and stores it in
         the sky_sub attribute.
 
-        Wrapper for background_subtract. If bias subtracted data is available, it
+        Wrapper for sky_subtract. If bias subtracted data is available, it
         uses that. Otherwise, it uses data in the data attribute. If neither are
         available, raises an exception.
 
@@ -135,7 +142,7 @@ class Region:
             indicates the corresponding element of data is masked. Masked pixels
             are excluded when computing the statistics.
         kwargs: dict, optional
-            Optional keywords for background_subtract
+            Optional keywords for sky_subtract
 
         Raises
         ------
@@ -144,19 +151,22 @@ class Region:
 
         See Also
         --------
-        background_subtract: returns background subtracted data
+        sky_subtract: returns background subtracted data
         """
 
+        # first look for bias subtracted data
         if self.bias_sub is not None:
-            self.sky_sub = background_subtract(self.bias_sub, mask=mask, **kwargs)
-        elif self.data is not None:
-            self.sky_sub = background_subtract(self.data, mask=mask, **kwargs)
-        elif self.data is None:
-            message = 'Data attributes are unassigned'
-            raise ValueError(message)
+            self.sky_sub, self.sky_stats = sky_subtract(self.bias_sub, mask=mask, **kwargs)
+        # if bias subtracted data is not found, used raw data
+        elif self.raw_data is not None:
+            warnings.warn('Bias subtracted data not found. Using raw data.', category=UserWarning)
+            self.sky_sub, self.sky_stats = sky_subtract(self.data, mask=mask, **kwargs)
+        # if no data is available, throw an exception
+        elif self.raw_data is None:
+            raise ValueError('Data attributes are unassigned')
 
 
-def get_ds9_region(get_data=True, ds9=None):
+def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
     """
     This function gets the first single valid box region selected in ds9, and
     returns it as a Region object.
@@ -173,7 +183,12 @@ def get_ds9_region(get_data=True, ds9=None):
         requirements if data is being handled separately.
     ds9: DS9 object, optional
         optional parameter to specify a DS9 target
-
+    bias_sec: array-like, optional
+        This must be a list, tuple, or array of four numbers that define the
+        bias section of the image, in the form (xmin, xmax, ymin, ymax). The
+        numbers can be ints, floats, or strings that represent ints. If a float
+        is given, it will be truncated towards zero. If None, the bias section
+        will be retrieved from the header.
     Returns
     -------
     region: Region object
@@ -259,15 +274,31 @@ def get_ds9_region(get_data=True, ds9=None):
                       'This could be due to entering the bias region, or crossing frames.'
             warnings.warn(message, category=UserWarning)
 
-        region.data = frame_data[ymin:ymax, xmin:xmax]
-
         # retrieve bias section, and calculate stats
-        bias_data = bias_from_ds9(ds9)
+        bias_data = bias_from_ds9(ds9, bias_sec)
         bias_mean, bias_median, bias_std = sigma_clipped_stats(bias_data, sigma=3.0, iters=5)
-        # store the bias stats, and bias subtracted region
-        region.bias = bias_mean
-        region.bias_dev = bias_std
-        region.bias_sub = region.data - bias_mean
+        print('----------------')
+        print('Bias statistics:')
+        print(f'Mean: {bias_mean:.2f}')
+        print(f'Median: {bias_median:.2f}')
+        print(f'Std: {bias_std:.2f}')
+        # explicitly use the bias mean as the value to subtract
+        bias = bias_mean
+        # store the bias stats
+        region.bias_stats = bias_mean, bias_median, bias_std
+
+        # display the bias stats after subtraction
+        test_mean, test_median, test_std = sigma_clipped_stats(bias_data - bias, sigma=3.0, iters=5)
+        print('Bias statistics after bias subtraction: ')
+        print(f'Mean: {test_mean:.2f}')
+        print(f'Median: {test_median:.2f}')
+        print(f'Std: {test_std:.2f}')
+
+        # perform the bias subtraction
+        bias_sub_frame = frame_data - bias
+        # store the data
+        region.raw_data = frame_data[ymin:ymax, xmin:xmax]
+        region.bias_sub = bias_sub_frame[ymin:ymax, xmin:xmax]
 
     # package all the meta data
     region.x_coord = x_coord
@@ -286,7 +317,7 @@ def get_ds9_region(get_data=True, ds9=None):
     return region
 
 
-def make_source_mask(indata, snr=2, npixels=5, **kwargs):
+def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     """
     Wrapper for the make_source_mask from photutils. Makes a mask corresponding
     to any flux sources in the data.
@@ -317,10 +348,14 @@ def make_source_mask(indata, snr=2, npixels=5, **kwargs):
     """
     from photutils import make_source_mask
 
-    return make_source_mask(indata, snr, npixels, **kwargs)
+    mask = make_source_mask(indata, snr, npixels, **kwargs)
+
+    if display_mask is True:
+        plt.imshow(mask, origin='lower', cmap='viridis')
+    return mask
 
 
-def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kwargs):
+def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs):
     """
     Calculates statistics on the background of the image data given.
 
@@ -349,7 +384,7 @@ def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kw
     """
     # if no mask is specified, mask any sources
     if mask_sources:
-        obj_mask = make_source_mask(indata)
+        obj_mask = make_source_mask(indata, display_mask=True)
         # if both a mask is specified and object masking is called for, combine the masks
         if mask_sources and mask:
             mask = mask + obj_mask
@@ -357,45 +392,56 @@ def background_stats(indata, mask=None, mask_sources=True, sigma_clip=True, **kw
         else:
             mask = obj_mask
 
+    # calculate the stats, with optional masks and optional sigma clipping
     if sigma_clip:
-        stats = sigma_clipped_stats(indata, mask=mask, **kwargs)
-        print('Background Statistics:')
-        print(f'Mean: {stats[0]:.2f}')
-        print(f'Median: {stats[1]:.2f}')
-        print(f'Std: {stats[2]:.2f}')
-        return stats
+        mean, median, std = sigma_clipped_stats(indata, mask=mask, **kwargs)
     else:
         # mask the data. If no mask is specified, mask is None
         masked_data = np.ma.array(indata, mask=mask)
-        stats = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
-        print('Background Statistics:')
-        print(f'Mean: {stats[0]:.2f}')
-        print(f'Median: {stats[1]:.2f}')
-        print(f'Std: {stats[2]:.2f}')
-        return stats
+        mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+
+    # display and return the values
+    print(f'Mean: {mean:.2f}')
+    print(f'Median: {median:.2f}')
+    print(f'Std: {std:.2f}')
+    return mean, median, std
 
 
-def bias_from_ds9(ds9_target, bias_sec=None):
+def bias_from_ds9(ds9=None, bias_sec=None):
     """
     This function retrieves the bias section from a fits file loaded in DS9.
 
     Parameters
     ----------
-    ds9_target: DS9() instance
-        Target DS9 instance to retrieve the data from
+    ds9: DS9() instance, optional
+        Target DS9 instance to retrieve the data from. If not specified, this
+        will be acquired automatcially.
     bias_sec: array-like, optional
         This must be a list, tuple, or array of four numbers that define the
-        bias section of the image. The numbers can be ints, floats, or strings
-        that represent ints. If a float is given, it will be truncated
-        towards zero. If None, the bias section will be retrieved from the
-        header.
+        bias section of the image, in the form (xmin, xmax, ymin, ymax). The
+        numbers can be ints, floats, or strings that represent ints. If a float
+        is given, it will be truncated towards zero. If None, the bias section
+        will be retrieved from the header.
 
     Returns
     -------
     bias_data: ndarray
         Numpy array containing the pixel values of the bias section.
     """
-    hdulist = ds9_target.get_pyfits()
+
+    # check if ds9 is accesible
+    if pyds9.ds9_targets() is None:
+        input('DS9 target not found. Please start/restart DS9, then press enter')
+
+    # if a ds9 target is not specified, make one
+    if ds9 is None:
+        try:
+            ds9 = pyds9.DS9()
+        except ValueError:
+            print('Specify a target DS9() instance to retrieve the bias from. '
+                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
+            raise
+    hdulist = ds9.get_pyfits()
 
     # hdulist.info()
     # extract header data unit from list
@@ -405,6 +451,7 @@ def bias_from_ds9(ds9_target, bias_sec=None):
         # extract the bias definition
         bias_str = hdu.header['BIASSEC']
 
+        print('Bias from ', ds9.get('file'))
         print('Bias Section is ' + bias_str)
         # print(type(bias_str))
         # slice the string, for converting to int
@@ -427,9 +474,13 @@ def bias_from_ds9(ds9_target, bias_sec=None):
     return bias_data
 
 
-def background_subtract(im_data, mask=None, **kwargs):
+def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     """
-    Returns a background subtracted copy of image data.
+    Returns a background (sky) subtracted copy of image data.
+
+    Does so by calculating the mean, median and std of the background, and
+    subtracting the mean from the input data. By default, this masks any sources
+    and sigma clips.
 
     Parameters
     ----------
@@ -440,14 +491,14 @@ def background_subtract(im_data, mask=None, **kwargs):
          corresponding to True values in mask will be ignored in
          calculations.
     kwargs: dict, optional
-        Keyword arguments to be passed to background_stats
+        Keyword arguments to be passed to image_stats
 
     Returns
     -------
     output_im: ndarray
         The background subtracted data.
-    std: float
-        The standard deviation of the background
+    stats: tuple
+        The mean, median, and standard deviation of the background
 
     See Also
     --------
@@ -456,14 +507,18 @@ def background_subtract(im_data, mask=None, **kwargs):
 
     # calculate bias using mean
     # clipped stats are used, just in case
-    mean, median, std = background_stats(im_data, mask=mask, **kwargs)
-    print('Background mean: ' + str(mean))
-    print('Background median: ' + str(median))
-    print('Background standerd deviation: ' + str(std))
+    print('----------------------')
+    print('Background statistics:')
+    mean, median, std = image_stats(im_data, mask=mask, mask_sources=mask_sources, **kwargs)
+
 
     output_im = im_data - mean
+    print('Background stats after subtraction:')
+    image_stats(output_im, mask=mask, mask_sources=mask_sources, **kwargs)
 
-    return output_im, std
+    stats = mean, median, std
+
+    return output_im, stats
 
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
     """
@@ -532,7 +587,7 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
     return output_im
 
 
-def display_data(imdata):
+def display_data(imdata, **kwargs):
     """
     A wrapper for matplotlib.pyplot.imshow, for displaying image data.
 
@@ -543,7 +598,7 @@ def display_data(imdata):
     """
     norm = ImageNormalize(stretch=SqrtStretch())
     plt.figure()
-    plt.imshow(imdata, norm=norm, origin='lower', cmap='viridis')
+    plt.imshow(imdata, norm=norm, origin='lower', cmap='viridis', **kwargs)
     plt.colorbar()
     plt.show()
 
