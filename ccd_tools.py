@@ -41,7 +41,7 @@ class Region:
         y coordinate of the lower left corner
     ymax: int
         y coordinate of the upper right corner
-    raw_data: ndarray
+    data: ndarray
         Image data array of the defined region.
     bias_sub: ndarray
         Image data array of the defined region, after bias subtraction
@@ -73,13 +73,12 @@ class Region:
         self.ymin = None
         self.ymax = None
 
-        self.raw_data = None
+        self.data = None
         self.bias_sub = None
         self.sky_sub = None
 
         self.bias_stats = None
         self.sky_stats = None
-
 
     def stats(self, sigma_clip=False, mask=None, **kwargs):
         """
@@ -100,9 +99,9 @@ class Region:
 
         """
         if sigma_clip:
-            mean, median, std = sigma_clipped_stats(self.raw_data, mask, **kwargs)
+            mean, median, std = sigma_clipped_stats(self.data, mask, **kwargs)
         else:
-            masked_data = np.ma.array(self.raw_data, mask=mask)
+            masked_data = np.ma.array(self.data, mask=mask)
             mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
         print('-----------------------')
@@ -158,11 +157,11 @@ class Region:
         if self.bias_sub is not None:
             self.sky_sub, self.sky_stats = sky_subtract(self.bias_sub, mask=mask, **kwargs)
         # if bias subtracted data is not found, used raw data
-        elif self.raw_data is not None:
+        elif self.data is not None:
             warnings.warn('Bias subtracted data not found. Using raw data.', category=UserWarning)
             self.sky_sub, self.sky_stats = sky_subtract(self.data, mask=mask, **kwargs)
         # if no data is available, throw an exception
-        elif self.raw_data is None:
+        elif self.data is None:
             raise ValueError('Data attributes are unassigned')
 
 
@@ -297,7 +296,7 @@ def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
         # perform the bias subtraction
         bias_sub_frame = frame_data - bias
         # store the data
-        region.raw_data = frame_data[ymin:ymax, xmin:xmax]
+        region.data = frame_data[ymin:ymax, xmin:xmax]
         region.bias_sub = bias_sub_frame[ymin:ymax, xmin:xmax]
 
     # package all the meta data
@@ -336,6 +335,8 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     npixels: int, optional
         Minimum number of continuous pixels that are above the threshold that
         an object must have to be considered a source.
+    display_mask: bool, optional
+        If True, a figure displaying the generated mask is produced
     kwargs: dict
         Keyword arguments for the make_source_mask function. See documentation
         for photutils.
@@ -369,8 +370,9 @@ def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs
         are excluded when computing the statistics.
     mask_sources: bool, optional
         If True, a source mask will be automatically generated using photutils.
-        To set options for mask generation, generate a mask separately, then
-        pass it through the mask parameter.
+        This source mask will be combined with any mask passed through the mask
+         parameter. To set options for mask generation, generate a mask
+         separately, then pass it through the mask parameter.
     sigma_clip: bool, optional
         If True, sigma clipped statistics will be returned using the function
         sigma_clipped_stats from astropy.stats
@@ -490,6 +492,10 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
         Boolean array the same size as im_data. Entries in im_data
          corresponding to True values in mask will be ignored in
          calculations.
+    mask_sources: bool, optional
+        If True, a source mask is automatically generated using photutils. This
+         option allows this feature to be disabled, in case photutils is not
+         available, or not working correctly.
     kwargs: dict, optional
         Keyword arguments to be passed to image_stats
 
@@ -511,14 +517,16 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     print('Background statistics:')
     mean, median, std = image_stats(im_data, mask=mask, mask_sources=mask_sources, **kwargs)
 
-
+    # subtract the bias from the image data
     output_im = im_data - mean
     print('Background stats after subtraction:')
     image_stats(output_im, mask=mask, mask_sources=mask_sources, **kwargs)
 
+    # package the statistics for return
     stats = mean, median, std
-
+    # return generated values
     return output_im, stats
+
 
 def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
     """
@@ -545,22 +553,21 @@ def bias_subtract(HDU, bias_sec=None):  # pass header data unit.  REMEBER, this 
 
     """
 
-
     # Store the data from the HDU argument
     im_data = HDU.data
 
     # check if parameters give the bias section, if not, automatically get it
     if bias_sec is None:
         # pull the bias section information from the header readout.
-        Bias_Sec = HDU.header['BIASSEC']
-        print('Bias Section is ' + Bias_Sec)
-        # print(type(Bias_Sec))
+        bias_str = HDU.header['BIASSEC']
+        print('Bias Section is ' + bias_str)
+        # print(type(bias_str))
         # slice the string, for converting to int
         pattern = re.compile('\d+')  # pattern for all decimal digits
-        print(pattern.findall(Bias_Sec))
+        print(pattern.findall(bias_str))
 
         # hold the result in an object
-        bias_sec = pattern.findall(Bias_Sec)
+        bias_sec = pattern.findall(bias_str)
 
     # Bias section data
     # image is not indexed the same as python.
@@ -633,7 +640,6 @@ def get_multiple_ds9_regions(get_data=True, ds9=None):
     if not ds9:
         ds9 = pyds9.DS9()
 
-
     # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
     # image format is required to properly index the data array.
     ds9.set('regions format ds9')
@@ -648,10 +654,8 @@ def get_multiple_ds9_regions(get_data=True, ds9=None):
 
     str_list = pattern.findall(raw_string)
 
-
     # remove meta-meta data, first two entries
     del str_list[0:2]
-
 
     # failure condition: no regions selected
     try:
@@ -661,13 +665,11 @@ def get_multiple_ds9_regions(get_data=True, ds9=None):
         print('No region selected in DS9. Please select a region')
         return 1
 
-
     # retrieve frame data
     if get_data:
         frame_data = ds9.get_arr2np()
 
     # frame_name = 'current frame'
-
 
     # print meta data
     print('Region Coordinate system:')
@@ -730,9 +732,6 @@ def get_multiple_ds9_regions(get_data=True, ds9=None):
 
             print('Region resolved')
 
-
-
         else:
             print('Region is not a box!')  # error condition
     return regions
-

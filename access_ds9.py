@@ -4,7 +4,7 @@ import pyds9 as ds9
 from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import matplotlib.pyplot as plt
-from ccd_tools import get_regions_from_ds9
+import numpy as np
 
 # check if ds9 is accesible
 if not ds9.ds9_targets():
@@ -53,5 +53,12 @@ d.get('regions selected')
 # select all defined regions
 d.set('regions select all')
 
+# accessing data slices directly
+data_str = ds9.get('data image 940 1092 8 6 no')
 
+# convert to 1d array
+# data_1d = np.fromstring(data_str, sep='\n')
+# above does not work
+
+# convert to original shape
 
