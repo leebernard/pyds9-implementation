@@ -118,7 +118,7 @@ class Region:
             print(f'Std: {self.bias_stats[2]:.2f}')
         if self.sky_stats:
             print('---------------------')
-            print('Bias Data Statistics:')
+            print('Sky Background Statistics:')
             print(f'Mean: {self.sky_stats[0]:.2f}')
             print(f'Median: {self.sky_stats[1]:.2f}')
             print(f'Std: {self.sky_stats[2]:.2f}')
@@ -167,8 +167,8 @@ class Region:
 
 def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
     """
-    This function gets the first single valid box region selected in ds9, and
-    returns it as a Region object.
+    Gets the first single valid box region selected in ds9, and returns it as
+    a Region object.
 
     This function requires that the region be selected and defined as a box.
     (see DS9) It stores the region data and the bias subtracted data in a
@@ -194,9 +194,10 @@ def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
 
     """
 
-    # check if ds9 is accesible
-    if pyds9.ds9_targets() is None:
-        input('DS9 target not found. Please start/restart DS9, then press enter')
+    # no longer needed, issue has been fixed
+    # # check if ds9 is accesible
+    # if pyds9.ds9_targets() is None:
+    #     input('DS9 target not found. Please start/restart DS9, then press enter')
 
     # if a ds9 target is not specified, make one
     if ds9 is None:
@@ -430,10 +431,6 @@ def bias_from_ds9(ds9=None, bias_sec=None):
     bias_data: ndarray
         Numpy array containing the pixel values of the bias section.
     """
-
-    # check if ds9 is accesible
-    if pyds9.ds9_targets() is None:
-        input('DS9 target not found. Please start/restart DS9, then press enter')
 
     # if a ds9 target is not specified, make one
     if ds9 is None:

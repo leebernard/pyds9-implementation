@@ -1,20 +1,20 @@
 # test space for learning to use pyds9
 
-import pyds9 as ds9
+import pyds9
 from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import matplotlib.pyplot as plt
 import numpy as np
 
 # check if ds9 is accesible
-if not ds9.ds9_targets():
+if not pyds9.ds9_targets():
     input('DS9 target not found. Please start/restart DS9, then press enter')
 
 
 
 # show targets
 print('ds9 target instance')
-print(ds9.ds9_targets())
+print(pyds9.ds9_targets())
 
 # pull the region data
 region_data = get_regions_from_ds9()
@@ -27,31 +27,42 @@ plt.show()
 
 
 # need to have an instance of ds9 running
+
 # define the ds9 object.  Calls class DS9
-d = ds9.DS9()
+ds9 = pyds9.DS9()
+
+# make a new, seperate instance of ds9
+ds9display = pyds9.DS9(target='display', start='ds9 -title display')
 
 # open file
-d.set('file /home/lee/Documents/k4m_160319_101212_ori.fits.fz[im1]')
+filename = '/home/lee/Documents/k4m_160319_101212_ori.fits.fz[im2]'
+ds9.set('file ' + filename)
 
 
 # show the open file in the target instance of ds9
-print(d.get('file'))
+print(ds9.get('file'))
 
 
 # show the xpa id of target instance
-print(d.access())
+print(ds9.access())
 
 # show the region(s)
-print(d.get('regions getinfo'))
+print(ds9.get('regions getinfo'))
 
 # set region format, in this case to image
-d.set('regions system image')
+ds9.set('regions system image')
 
 # show only the regions that have been selected
-d.get('regions selected')
+ds9.get('regions selected')
 
 # select all defined regions
-d.set('regions select all')
+ds9.set('regions select all')
+
+# open fits file as mosaic
+ds9.set('mosaicimage ' + filename)
+
+# open fits file as multiple frames
+ds9.set('multiframe ' + filename)
 
 # accessing data slices directly
 data_str = ds9.get('data image 940 1092 8 6 no')
