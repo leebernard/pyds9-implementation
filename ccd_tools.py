@@ -83,8 +83,10 @@ class Region:
 
     def stats(self, sigma_clip=False, mask=None, **kwargs):
         """
-        Displays and returns statistics of the data attribute, with options for masking
-        sources and sigma clipping.
+        Displays statistics of the region data, and bias subtracted and sky
+        subtracted data if available.
+
+        Has options for masking and sigma clipping.
 
         Parameters
         ----------
@@ -111,20 +113,30 @@ class Region:
         print(f'Median: {median:.2f}')
         print(f'Std: {std:.2f}')
         # if there are stats on the bias and sky background, print those also
-        if self.bias_stats:
+        if self.bias_sub:
+            if sigma_clip:
+                mean, median, std = sigma_clipped_stats(self.bias_sub, mask, **kwargs)
+            else:
+                masked_data = np.ma.array(self.bias_sub, mask=mask)
+                mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
             print('---------------------')
-            print('Bias Data Statistics:')
-            print(f'Mean: {self.bias_stats[0]:.2f}')
-            print(f'Median: {self.bias_stats[1]:.2f}')
-            print(f'Std: {self.bias_stats[2]:.2f}')
-        if self.sky_stats:
+            print('Bias Subtracted Data Statistics:')
+            print(f'Mean: {mean:.2f}')
+            print(f'Median: {median:.2f}')
+            print(f'Std: {std:.2f}')
+        if self.sky_sub:
+            if sigma_clip:
+                mean, median, std = sigma_clipped_stats(self.bias_sub, mask, **kwargs)
+            else:
+                masked_data = np.ma.array(self.bias_sub, mask=mask)
+                mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
             print('---------------------')
-            print('Sky Background Statistics:')
+            print('Sky Subtracted Data Statistics:')
             print(f'Mean: {self.sky_stats[0]:.2f}')
             print(f'Median: {self.sky_stats[1]:.2f}')
             print(f'Std: {self.sky_stats[2]:.2f}')
 
-        return mean, median, std
+        # return mean, median, std
 
     def sky_subtract(self, mask=None, **kwargs):
         """
