@@ -32,7 +32,7 @@ plt.show()
 ds9 = pyds9.DS9()
 
 # make a new, seperate instance of ds9
-ds9display = pyds9.DS9(target='display', start='ds9 -title display')
+ds9display = pyds9.DS9(target='display', start='-title display')
 
 # open file
 filename = '/home/lee/Documents/k4m_160319_101212_ori.fits.fz[im2]'

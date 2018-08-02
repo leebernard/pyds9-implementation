@@ -1,13 +1,14 @@
 
 
 # import needed packages
+import pyds9
 from astropy.visualization import SqrtStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import matplotlib.pyplot as plt
 import warnings
 import numpy as np
 # from astropy.io import fits
-import pyds9
+
 import re
 from astropy.stats import sigma_clipped_stats
 
@@ -165,7 +166,7 @@ class Region:
             raise ValueError('Data attributes are unassigned')
 
 
-def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
+def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     """
     Gets the first single valid box region selected in ds9, and returns it as
     a Region object.
@@ -177,11 +178,11 @@ def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
 
     Parameters
     ----------
+    ds9: DS9 object, optional
+        optional parameter to specify a DS9 target
     get_data: bool, optional
         If True, does not retrieve data from DS9. This to reduce the resource
         requirements if data is being handled separately.
-    ds9: DS9 object, optional
-        optional parameter to specify a DS9 target
     bias_sec: array-like, optional
         This must be a list, tuple, or array of four numbers that define the
         bias section of the image, in the form (xmin, xmax, ymin, ymax). The
@@ -192,12 +193,51 @@ def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
     -------
     region: Region object
 
-    """
+    Examples
+    --------
+    >>> from ccd_tools import *
+    >>> ds9 = pyds9.DS9()
+    >>> testregion = get_ds9_region(ds9=ds9)
+    # Region file format: DS9 version 4.1
+    global color=green dashlist=8 3 width=1 font="helvetica 10 normal roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1
+    image
+    Region definition:  ['box(893.07248,1213.0923,72.575962,72.575909,359.99999)']
+    Bias from  /home/lee/Documents/k4m_160531_050920_ori.fits.fz[im1]
+    Bias Section is [2066:2112,18:2065]
+    ----------------
+    Bias statistics:
+    Mean: 3357.89
+    Median: 3358.00
+    Std: 4.50
+    Bias statistics after bias subtraction:
+    Mean: 0.00
+    Median: 0.11
+    Std: 4.50
+    >>> testregion.data
+    array([[5504, 5487, 5503, ..., 5518, 5527, 5563],
+           [5488, 5495, 5527, ..., 5515, 5542, 5522],
+           [5561, 5540, 5586, ..., 5514, 5558, 5552],
+           ...,
+           [5588, 5552, 5615, ..., 5548, 5579, 5545],
+           [5534, 5530, 5553, ..., 5545, 5556, 5590],
+           [5587, 5560, 5579, ..., 5526, 5560, 5519]], dtype=int32)
+    >>> testregion.bias_sub
+    array([[2146.10897334, 2129.10897334, 2145.10897334, ..., 2160.10897334,
+            2169.10897334, 2205.10897334],
+           [2130.10897334, 2137.10897334, 2169.10897334, ..., 2157.10897334,
+            2184.10897334, 2164.10897334],
+           [2203.10897334, 2182.10897334, 2228.10897334, ..., 2156.10897334,
+            2200.10897334, 2194.10897334],
+           ...,
+           [2230.10897334, 2194.10897334, 2257.10897334, ..., 2190.10897334,
+            2221.10897334, 2187.10897334],
+           [2176.10897334, 2172.10897334, 2195.10897334, ..., 2187.10897334,
+            2198.10897334, 2232.10897334],
+           [2229.10897334, 2202.10897334, 2221.10897334, ..., 2168.10897334,
+            2202.10897334, 2161.10897334]])
 
-    # no longer needed, issue has been fixed
-    # # check if ds9 is accesible
-    # if pyds9.ds9_targets() is None:
-    #     input('DS9 target not found. Please start/restart DS9, then press enter')
+
+    """
 
     # if a ds9 target is not specified, make one
     if ds9 is None:
@@ -265,40 +305,53 @@ def get_ds9_region(get_data=True, ds9=None, bias_sec=None):
             frame_data = hdu.data
             # determine what the valid data region is
             pattern = re.compile('\d+')  # pattern for all decimal digits
-            datasec = pattern.findall(hdu.header['DATASEC'])
-            # print('Data section: ', datasec)
+            try:
+                datasec = pattern.findall(hdu.header['DATASEC'])
+            except KeyError as err:
+                message = str(err) + ' Unable to validate region.\nRegion may exceed image bounds'
+                warnings.warn(message, category=UserWarning)
+            else:
+                # print('Data section: ', datasec)
+                # if the selected region is outside the valid data range, throw a warning
+                if int(datasec[0]) > xmin or int(datasec[1]) < xmax or int(datasec[2]) > ymin or int(datasec[3]) < ymax:
+                    message = 'Region definition exceeds valid data range. \n ' \
+                              'This could be due to entering the bias region, or crossing frames.'
+                    warnings.warn(message, category=UserWarning)
 
-        # if the selected region is outside the valid data range, throw a warning
-        if int(datasec[0]) > xmin or int(datasec[1]) < xmax or int(datasec[2]) > ymin or int(datasec[3]) < ymax:
-            message = 'Region definition exceeds valid data range. \n ' \
-                      'This could be due to entering the bias region, or crossing frames.'
-            warnings.warn(message, category=UserWarning)
+        # store the raw data
+        region.data = frame_data[ymin:ymax, xmin:xmax]
 
         # retrieve bias section, and calculate stats
-        bias_data = bias_from_ds9(ds9, bias_sec)
-        bias_mean, bias_median, bias_std = sigma_clipped_stats(bias_data, sigma=3.0, iters=5)
-        print('----------------')
-        print('Bias statistics:')
-        print(f'Mean: {bias_mean:.2f}')
-        print(f'Median: {bias_median:.2f}')
-        print(f'Std: {bias_std:.2f}')
-        # explicitly use the bias mean as the value to subtract
-        bias = bias_mean
-        # store the bias stats
-        region.bias_stats = bias_mean, bias_median, bias_std
+        try:
+            bias_data = bias_from_ds9(ds9, bias_sec)
+        except KeyError as err:
+            message = str(err) + ' Unable to perform bias subtraction.'
+            warnings.warn(message, category=UserWarning)
+        else:
+            # bias dependent operations
+            bias_mean, bias_median, bias_std = sigma_clipped_stats(bias_data, sigma=3.0, iters=5)
+            print('----------------')
+            print('Bias statistics:')
+            print(f'Mean: {bias_mean:.2f}')
+            print(f'Median: {bias_median:.2f}')
+            print(f'Std: {bias_std:.2f}')
+            # explicitly use the bias mean as the value to subtract
+            bias = bias_mean
+            # store the bias stats
+            region.bias_stats = bias_mean, bias_median, bias_std
 
-        # display the bias stats after subtraction
-        test_mean, test_median, test_std = sigma_clipped_stats(bias_data - bias, sigma=3.0, iters=5)
-        print('Bias statistics after bias subtraction: ')
-        print(f'Mean: {test_mean:.2f}')
-        print(f'Median: {test_median:.2f}')
-        print(f'Std: {test_std:.2f}')
+            # display the bias stats after subtraction
+            test_mean, test_median, test_std = sigma_clipped_stats(bias_data - bias, sigma=3.0, iters=5)
+            print('Bias statistics after bias subtraction: ')
+            print(f'Mean: {test_mean:.2f}')
+            print(f'Median: {test_median:.2f}')
+            print(f'Std: {test_std:.2f}')
 
-        # perform the bias subtraction
-        bias_sub_frame = frame_data - bias
-        # store the data
-        region.data = frame_data[ymin:ymax, xmin:xmax]
-        region.bias_sub = bias_sub_frame[ymin:ymax, xmin:xmax]
+            # perform the bias subtraction
+            bias_sub_frame = frame_data - bias
+            region.bias_sub = bias_sub_frame[ymin:ymax, xmin:xmax]
+
+
 
     # package all the meta data
     region.x_coord = x_coord
@@ -606,6 +659,28 @@ def display_data(imdata, **kwargs):
     plt.colorbar()
     plt.show()
 
+
+def get_image_data(ds9=None, datasec=None):
+
+    # if a ds9 target is not specified, make one
+    if ds9 is None:
+        try:
+            ds9 = pyds9.DS9()
+        except ValueError:
+            print('Specify a target DS9() instance to retrieve the bias from. '
+                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
+            raise
+    hdulist = ds9.get_pyfits()
+
+    if datasec is None:
+        # determine what the valid data region is
+        pattern = re.compile('\d+')  # pattern for all decimal digits
+        datasec = pattern.findall(hdulist[0].header['DATASEC'])
+        print('Data section: ', datasec)
+
+    image_data = hdulist[0].data[int(datasec[0]):int(datasec[1]), int(datasec[2]):int(datasec[3])]
+
+    return image_data
 
 def get_multiple_ds9_regions(get_data=True, ds9=None):
     """a function for importing the region info from SAOImage DS9 by pyds9's access routines.
