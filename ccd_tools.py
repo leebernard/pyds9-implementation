@@ -167,15 +167,17 @@ class Region:
         """
 
         # first look for bias subtracted data
-        if self.bias_sub is not None:
+        if isinstance(self.bias_sub, np.ndarray):
             self.sky_sub, self.sky_stats = sky_subtract(self.bias_sub, mask=mask, **kwargs)
         # if bias subtracted data is not found, used raw data
-        elif self.data is not None:
+        elif isinstance(self.data, np.ndarray):
             warnings.warn('Bias subtracted data not found. Using raw data.', category=UserWarning)
             self.sky_sub, self.sky_stats = sky_subtract(self.data, mask=mask, **kwargs)
         # if no data is available, throw an exception
         elif self.data is None:
             raise ValueError('Data attributes are unassigned')
+        else:
+            raise TypeError('Invalid value stored in data attributes.')
 
 
 def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
