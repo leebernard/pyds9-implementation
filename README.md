@@ -11,20 +11,21 @@ files on github.
 
 Getting Started
 ---------------
-####Prerequisites
+#### Prerequisites
 
-Python 3.6
-astropy 
-numpy
-matplotlib
-scipy cython 
+Python 3.6  
+astropy  
+numpy  
+matplotlib  
+scipy  
+cython  
 scikit-image
 
 Optional:
 photutils
 
 
-####Installing
+#### Installing
 Create an env with the requisite packages. Example:
 
     name@labcomp:~$ conda create --name env_name python=3.6
@@ -33,14 +34,16 @@ Create an env with the requisite packages. Example:
     (env_name) name@labcomp:~$ conda install -c astropy photutils
     (env_name) name@labcomp:~$ pip install pyds9
 
-one way of installing ccd_tools:
+ccd_tools is available on github, at https://github.com/leebernard/pyds9-implementation/tree/distribute
+
+One way of installing ccd_tools is to download directly:
 
 go to  
 https://raw.githubusercontent.com/leebernard/pyds9-implementation/distribute/ccd_tools.py  
 Click (File or right-click) > Save Page As...  
 Save to a folder named ccd_tools, in the directory of your choice.
 
-Once the file has been downloaded, add it to the .bash_profile (or .profile) file:
+Once the file has been downloaded, add this line to the .bash_profile (or .profile) file:
 
     export PYTHONPATH=/your/chosen/directory/ccd_tools:$PYTHONPATH
 
@@ -52,7 +55,7 @@ Alternately, you can enter the following code every time you run Python
     >>> sys.path.insert(0, '/your/chosen/directory/ccd_tools')
     >>> from ccd_tools import *
 
-####Examples
+#### Examples
 Retrieve a region from DS9, and show the statistics. This retrieves the bias subtracted data as 
 well, if a bias region is available.
 
@@ -90,17 +93,17 @@ well, if a bias region is available.
     Median: 2165.11
     Std: 1930.76
 
-To see the documentation of a particular function, type print(foo.__doc__)
+To see the documentation of a particular function, enter print(foo.\_\_doc\_\_)
 
            
     >>> print(exampleregion.sky_subtract.__doc__)
     
-            This function calculates the background subtracted data, and stores it in
+            This method calculates the background subtracted data, and stores it in
             the sky_sub attribute.
     
-            Wrapper for sky_subtract. If bias subtracted data is available, it
-            uses that. Otherwise, it uses data in the data attribute. If neither are
-            available, raises an exception.
+            This is a wrapper for sky_subtract. If bias subtracted data is available, 
+            it uses that. Otherwise, it uses data in the data attribute. If neither are
+             available, raises an exception.
     
             Parameters
             ----------
@@ -134,11 +137,16 @@ To show the currently available instances of DS9, enter
     ['DS9:display 7f000001:37337', 'DS9:ds9 7f000001:44345']
 To select a specific instance (say if you opened multiple instances before starting python), enter
 
-    >>> ds9 = pyds9.DS9(target='ds9')
+    >>> ds9 = pyds9.DS9(target='display')
     >>> 
+Alternately, you can specify the XPA address. This is functionally the same as the above:
 
-####Issues
-Sometimes, if multiple instances of DS9 are closed, the XPA name server seems to close. If it shows an error similar to this
+    >>> ds9 = pyds9.DS9(target='7f000001:37337')
+    >>> 
+    
+#### Issues
+Sometimes, if multiple instances of DS9 are closed, the XPA name server seems to close. If it shows 
+an error similar to this
     
     ValueError: no active ds9 running for target: display
 Try running 

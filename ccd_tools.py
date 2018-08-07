@@ -149,12 +149,12 @@ class Region:
 
     def sky_subtract(self, mask=None, **kwargs):
         """
-        This function calculates the background subtracted data, and stores it in
+        This method calculates the background subtracted data, and stores it in
         the sky_sub attribute.
 
-        Wrapper for sky_subtract. If bias subtracted data is available, it
-        uses that. Otherwise, it uses data in the data attribute. If neither are
-        available, raises an exception.
+        This is a wrapper for sky_subtract. If bias subtracted data is available,
+        it uses that. Otherwise, it uses data in the data attribute. If neither are
+         available, raises an exception.
 
         Parameters
         ----------
@@ -212,10 +212,16 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
         numbers can be ints, floats, or strings that represent ints. If a float
         is given, it will be truncated towards zero. If None, the bias section
         will be retrieved from the header.
+
     Returns
     -------
     region: Region object
 
+    Raises
+    ------
+    IndexError
+        If a region has not been selected in DS9, or the region selected is not
+         a box.
     Examples
     --------
     >>> from ccd_tools import *
