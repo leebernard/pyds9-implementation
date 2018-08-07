@@ -22,17 +22,20 @@ display_data: A wrapper for displaying image data using MatPlotLib
 
 """
 
+__version__ = '0.1'
+__author__ = 'Lee Bernard'
 # import needed packages
-import pyds9
-from astropy.visualization import SqrtStretch
-from astropy.visualization.mpl_normalize import ImageNormalize
+
 import matplotlib.pyplot as plt
 import warnings
 import numpy as np
 # from astropy.io import fits
-
 import re
 from astropy.stats import sigma_clipped_stats
+from astropy.visualization import SqrtStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
+
+import pyds9
 
 
 class Region:
@@ -435,6 +438,7 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     mask = make_source_mask(indata, snr, npixels, **kwargs)
 
     if display_mask is True:
+        plt.figure()
         plt.imshow(mask, origin='lower', cmap='viridis')
     return mask
 
@@ -596,7 +600,7 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     print('Background statistics:')
     mean, median, std = image_stats(im_data, mask=mask, mask_sources=mask_sources, **kwargs)
 
-    # subtract the bias from the image data
+    # subtract the mean from the image data
     output_im = im_data - mean
     print('Background stats after subtraction:')
     image_stats(output_im, mask=mask, mask_sources=mask_sources, **kwargs)
