@@ -101,40 +101,47 @@ class Region:
         -------
 
         """
+        # apply the mask. If the mask is None, this effectively does nothing
+        masked_data = np.ma.array(self.data, mask=mask)
         if sigma_clip:
-            mean, median, std = sigma_clipped_stats(self.data, mask, **kwargs)
+            mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
         else:
-            masked_data = np.ma.array(self.data, mask=mask)
             mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
         print('-----------------------')
         print('Region Data Statistics:')
+        print(f'Min pixel value: {np.min(masked_data):.2f}')
+        print(f'Max pixel value: {np.max(masked_data):.2f}')
         print(f'Mean: {mean:.2f}')
         print(f'Median: {median:.2f}')
         print(f'Std: {std:.2f}')
         # if there are stats on the bias and sky background, print those also
-        if self.bias_sub:
+        if isinstance(self.bias_sub, np.ndarray):
+            masked_data = np.ma.array(self.bias_sub, mask=mask)
             if sigma_clip:
-                mean, median, std = sigma_clipped_stats(self.bias_sub, mask, **kwargs)
+                mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
             else:
-                masked_data = np.ma.array(self.bias_sub, mask=mask)
                 mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
             print('---------------------')
             print('Bias Subtracted Data Statistics:')
+            print(f'Min pixel value: {np.min(masked_data):.2f}')
+            print(f'Max pixel value: {np.max(masked_data):.2f}')
             print(f'Mean: {mean:.2f}')
             print(f'Median: {median:.2f}')
             print(f'Std: {std:.2f}')
-        if self.sky_sub:
+        if isinstance(self.sky_sub, np.ndarray):
+            masked_data = np.ma.array(self.bias_sub, mask=mask)
             if sigma_clip:
-                mean, median, std = sigma_clipped_stats(self.bias_sub, mask, **kwargs)
+                mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
             else:
-                masked_data = np.ma.array(self.bias_sub, mask=mask)
                 mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
             print('---------------------')
             print('Sky Subtracted Data Statistics:')
-            print(f'Mean: {self.sky_stats[0]:.2f}')
-            print(f'Median: {self.sky_stats[1]:.2f}')
-            print(f'Std: {self.sky_stats[2]:.2f}')
+            print(f'Min pixel value: {np.min(masked_data):.2f}')
+            print(f'Max pixel value: {np.max(masked_data):.2f}')
+            print(f'Mean: {mean:.2f}')
+            print(f'Median: {median:.2f}')
+            print(f'Std: {std:.2f}')
 
         # return mean, median, std
 
@@ -167,15 +174,17 @@ class Region:
         """
 
         # first look for bias subtracted data
-        if self.bias_sub is not None:
+        if isinstance(self.bias_sub, np.ndarray):
             self.sky_sub, self.sky_stats = sky_subtract(self.bias_sub, mask=mask, **kwargs)
         # if bias subtracted data is not found, used raw data
-        elif self.data is not None:
+        elif isinstance(self.data, np.ndarray):
             warnings.warn('Bias subtracted data not found. Using raw data.', category=UserWarning)
             self.sky_sub, self.sky_stats = sky_subtract(self.data, mask=mask, **kwargs)
         # if no data is available, throw an exception
         elif self.data is None:
             raise ValueError('Data attributes are unassigned')
+        else:
+            raise TypeError('Invalid value stored in data attributes.')
 
 
 def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
