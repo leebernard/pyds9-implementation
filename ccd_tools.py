@@ -1,16 +1,41 @@
+"""
+ccd_tools is a wrapper and extension for pyds9, with basic stats function
+for convenience. This is very much still in development, so use with
+caution.
+
+Classes
+-------
+The Region class is for holding segments of image data in a convenient
+wrapper.
+
+Functions
+---------
+get_ds9_regions: Retrieves a selected region from DS9, and returns it as a Region instance
+make_source_mask: Generates and returns a source mask from image data.
+image_stats: Returns stats on image data.
+bias_from_ds9: Returns the data in the bias section from an image loaded in DS9.
+sky_subtract: Returns the sky background subtracted image data
+bias_subtract: Returns the bias subtracted data
+display_data: A wrapper for displaying image data using MatPlotLib
 
 
+
+"""
+
+__version__ = '0.1'
+__author__ = 'Lee Bernard'
 # import needed packages
-import pyds9
-from astropy.visualization import SqrtStretch
-from astropy.visualization.mpl_normalize import ImageNormalize
+
 import matplotlib.pyplot as plt
 import warnings
 import numpy as np
 # from astropy.io import fits
-
 import re
 from astropy.stats import sigma_clipped_stats
+from astropy.visualization import SqrtStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
+
+import pyds9
 
 
 class Region:
@@ -55,6 +80,7 @@ class Region:
     Methods
     -------
     sky_subtract: adds sky background subtracted data to the sky_sub attribute.
+    stats: displays statistics on the data attributes
     """
 
     def __init__(self):
@@ -81,7 +107,7 @@ class Region:
         self.bias_stats = None
         self.sky_stats = None
 
-    def stats(self, sigma_clip=False, mask=None, **kwargs):
+    def stats(self, mask=None, sigma_clip=False, mask_sources=False,  **kwargs):
         """
         Displays statistics of the region data, and bias subtracted and sky
         subtracted data if available.
@@ -95,64 +121,43 @@ class Region:
         mask: np.ndarray (bool), optional
             Boolean array of the same shape as self.data. Entries that are set to
             True are ignored in statistical calculations.
+        mask_sources:
+            Flag for masking sources or not
         kwargs: dict
-            Keyword argument
+            Keyword arguments to be passed to image stats
         Returns
         -------
 
+        See Also
+        --------
+        image_stats: calculates statistics on image data
         """
-        # apply the mask. If the mask is None, this effectively does nothing
-        masked_data = np.ma.array(self.data, mask=mask)
-        if sigma_clip:
-            mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-        else:
-            mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
         print('-----------------------')
         print('Region Data Statistics:')
-        print(f'Min pixel value: {np.min(masked_data):.2f}')
-        print(f'Max pixel value: {np.max(masked_data):.2f}')
-        print(f'Mean: {mean:.2f}')
-        print(f'Median: {median:.2f}')
-        print(f'Std: {std:.2f}')
+        image_stats(self.data, mask=mask, sigma_clip=sigma_clip, mask_sources=mask_sources, **kwargs)
         # if there are stats on the bias and sky background, print those also
         if isinstance(self.bias_sub, np.ndarray):
-            masked_data = np.ma.array(self.bias_sub, mask=mask)
-            if sigma_clip:
-                mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-            else:
-                mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+
             print('---------------------')
-            print('Bias Subtracted Data Statistics:')
-            print(f'Min pixel value: {np.min(masked_data):.2f}')
-            print(f'Max pixel value: {np.max(masked_data):.2f}')
-            print(f'Mean: {mean:.2f}')
-            print(f'Median: {median:.2f}')
-            print(f'Std: {std:.2f}')
+            print('Region Bias Subtracted Statistics:')
+            image_stats(self.bias_sub, mask=mask, sigma_clip=sigma_clip, mask_sources=mask_sources, **kwargs)
         if isinstance(self.sky_sub, np.ndarray):
-            masked_data = np.ma.array(self.bias_sub, mask=mask)
-            if sigma_clip:
-                mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-            else:
-                mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+
             print('---------------------')
             print('Sky Subtracted Data Statistics:')
-            print(f'Min pixel value: {np.min(masked_data):.2f}')
-            print(f'Max pixel value: {np.max(masked_data):.2f}')
-            print(f'Mean: {mean:.2f}')
-            print(f'Median: {median:.2f}')
-            print(f'Std: {std:.2f}')
+            image_stats(self.sky_sub, mask=mask, sigma_clip=sigma_clip, mask_sources=mask_sources, **kwargs)
 
         # return mean, median, std
 
     def sky_subtract(self, mask=None, **kwargs):
         """
-        This function calculates the background subtracted data, and stores it in
+        This method calculates the background subtracted data, and stores it in
         the sky_sub attribute.
 
-        Wrapper for sky_subtract. If bias subtracted data is available, it
-        uses that. Otherwise, it uses data in the data attribute. If neither are
-        available, raises an exception.
+        This is a wrapper for sky_subtract. If bias subtracted data is available,
+        it uses that. Otherwise, it uses data in the data attribute. If neither are
+         available, raises an exception.
 
         Parameters
         ----------
@@ -210,10 +215,16 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
         numbers can be ints, floats, or strings that represent ints. If a float
         is given, it will be truncated towards zero. If None, the bias section
         will be retrieved from the header.
+
     Returns
     -------
     region: Region object
 
+    Raises
+    ------
+    IndexError
+        If a region has not been selected in DS9, or the region selected is not
+         a box.
     Examples
     --------
     >>> from ccd_tools import *
@@ -427,17 +438,18 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     mask = make_source_mask(indata, snr, npixels, **kwargs)
 
     if display_mask is True:
+        plt.figure()
         plt.imshow(mask, origin='lower', cmap='viridis')
     return mask
 
 
-def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs):
+def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
     """
     Calculates statistics on the background of the image data given.
 
     Parameters
     ----------
-    indata: array-like
+    imdata: array-like
         Data array of an image
     mask: numpy.ndarray (bool), optional
         A boolean mask with the same shape as data, where a True value
@@ -461,7 +473,7 @@ def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs
     """
     # if no mask is specified, mask any sources
     if mask_sources:
-        obj_mask = make_source_mask(indata, display_mask=True)
+        obj_mask = make_source_mask(imdata, display_mask=True)
         # if both a mask is specified and object masking is called for, combine the masks
         if mask_sources and mask:
             mask = mask + obj_mask
@@ -469,15 +481,15 @@ def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs
         else:
             mask = obj_mask
 
-    # calculate the stats, with optional masks and optional sigma clipping
+    # apply the mask. If the mask is None, this effectively does nothing
+    masked_data = np.ma.array(imdata, mask=mask)
     if sigma_clip:
-        mean, median, std = sigma_clipped_stats(indata, mask=mask, **kwargs)
+        mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
     else:
-        # mask the data. If no mask is specified, mask is None
-        masked_data = np.ma.array(indata, mask=mask)
         mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
-    # display and return the values
+    print(f'Min pixel value: {np.min(masked_data):.2f}')
+    print(f'Max pixel value: {np.max(masked_data):.2f}')
     print(f'Mean: {mean:.2f}')
     print(f'Median: {median:.2f}')
     print(f'Std: {std:.2f}')
@@ -588,7 +600,7 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     print('Background statistics:')
     mean, median, std = image_stats(im_data, mask=mask, mask_sources=mask_sources, **kwargs)
 
-    # subtract the bias from the image data
+    # subtract the mean from the image data
     output_im = im_data - mean
     print('Background stats after subtraction:')
     image_stats(output_im, mask=mask, mask_sources=mask_sources, **kwargs)
@@ -679,152 +691,3 @@ def display_data(imdata, **kwargs):
     plt.imshow(imdata, norm=norm, origin='lower', cmap='viridis', **kwargs)
     plt.colorbar()
     plt.show()
-
-
-def get_image_data(ds9=None, datasec=None):
-
-    # if a ds9 target is not specified, make one
-    if ds9 is None:
-        try:
-            ds9 = pyds9.DS9()
-        except ValueError:
-            print('Specify a target DS9() instance to retrieve the bias from. '
-                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
-            raise
-    hdulist = ds9.get_pyfits()
-
-    if datasec is None:
-        # determine what the valid data region is
-        pattern = re.compile('\d+')  # pattern for all decimal digits
-        datasec = pattern.findall(hdulist[0].header['DATASEC'])
-        print('Data section: ', datasec)
-
-    image_data = hdulist[0].data[int(datasec[0]):int(datasec[1]), int(datasec[2]):int(datasec[3])]
-
-    return image_data
-
-def get_multiple_ds9_regions(get_data=True, ds9=None):
-    """a function for importing the region info from SAOImage DS9 by pyds9's access routines.
-
-    Each object has the DS9 canonical definition of the region, the array indices of the region, and the region data
-    for memory/runtime management concerns, the region data feature can be suppressed by setting the optional argument
-    get_data=False. This prevents the function from accessing the data held in DS9, significantly decreasing the
-    resource consumption.
-
-    Parameters
-    ----------
-    get_data: bool, optional
-        sets whether or not to include the data of the region
-    ds9: DS9 object, optional
-        Gives the function a ds9 object to pull the regions from. If none is indicated, creates an DS9 object using
-        default methods.
-
-    Returns
-    -------
-    regions: list
-        list of region objects that are selected in SAOImage DS9
-    """
-    # pulls all regions into a list. 1st entry on the list is the frame name
-    import pyds9
-    import re
-    # import numpy as np
-
-    # if ds9 is not specified, create a ds9 object
-    if not ds9:
-        ds9 = pyds9.DS9()
-
-    # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
-    # image format is required to properly index the data array.
-    ds9.set('regions format ds9')
-    ds9.set('regions system image')
-
-    # get selected regions info
-    raw_string = ds9.get('regions selected')
-    # print(raw_string)
-
-    # transform string into list that is organized by lines
-    pattern = re.compile('.+')
-
-    str_list = pattern.findall(raw_string)
-
-    # remove meta-meta data, first two entries
-    del str_list[0:2]
-
-    # failure condition: no regions selected
-    try:
-        # yank format
-        region_system = str_list.pop(0)
-    except IndexError:
-        print('No region selected in DS9. Please select a region')
-        return 1
-
-    # retrieve frame data
-    if get_data:
-        frame_data = ds9.get_arr2np()
-
-    # frame_name = 'current frame'
-
-    # print meta data
-    print('Region Coordinate system:')
-    print(region_system)
-    print('Selected Regions:')
-
-    # parse the meta data string
-    # pattern is all sequences of digits that may or may not contain a period
-    pattern = re.compile('\d+\.?\d*')
-
-    # The list for holding the region data. This is returned
-    regions = []
-
-    for region_str in str_list:
-        print(region_str)  # print the region currently being parsed
-        if re.match('box', region_str):
-
-            region_def = pattern.findall(region_str)
-
-            # current instance of a region
-            current_region = Region()
-
-            # save region definition
-            current_region.region_def = region_str
-
-            # region system
-            current_region.system = region_system
-
-            # region definition: origin is lower left, given as x and y coord, with a width and a height
-            x_coord = float(region_def[0])
-            y_coord = float(region_def[1])
-            width = float(region_def[2])
-            height = float(region_def[3])
-
-            # region slicing data
-            xmin = int(x_coord - width/2)
-            xmax = int(x_coord + width/2)
-
-            ymin = int(y_coord - height/2)
-            ymax = int(y_coord + height/2)
-
-            # retrieve region data by slicing the frame data array, and store it in the current region
-            # This is determined by option get_data.
-            if get_data:
-                current_region.data = frame_data[ymin:ymax, xmin:xmax]
-
-            # package all the meta data
-            current_region.x_coord = x_coord
-            current_region.y_coord = y_coord
-            current_region.width = width
-            current_region.height = height
-
-            current_region.xmin = xmin
-            current_region.xmax = xmax
-            current_region.ymin = ymin
-            current_region.ymax = ymax
-
-            # store current region in the return list
-            regions.append(current_region)
-
-            print('Region resolved')
-
-        else:
-            print('Region is not a box!')  # error condition
-    return regions
