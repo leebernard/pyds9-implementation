@@ -104,7 +104,7 @@ class Region:
         self.bias_stats = None
         self.sky_stats = None
 
-    def stats(self, sigma_clip=False, mask=None, **kwargs):
+    def stats(self, mask=None, sigma_clip=False, mask_sources=False,  **kwargs):
         """
         Displays statistics of the region data, and bias subtracted and sky
         subtracted data if available.
@@ -118,53 +118,32 @@ class Region:
         mask: np.ndarray (bool), optional
             Boolean array of the same shape as self.data. Entries that are set to
             True are ignored in statistical calculations.
+        mask_sources:
+            Flag for masking sources or not
         kwargs: dict
-            Keyword argument
+            Keyword arguments to be passed to image stats
         Returns
         -------
 
+        See Also
+        --------
+        image_stats: calculates statistics on image data
         """
-        # apply the mask. If the mask is None, this effectively does nothing
-        masked_data = np.ma.array(self.data, mask=mask)
-        if sigma_clip:
-            mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-        else:
-            mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
         print('-----------------------')
         print('Region Data Statistics:')
-        print(f'Min pixel value: {np.min(masked_data):.2f}')
-        print(f'Max pixel value: {np.max(masked_data):.2f}')
-        print(f'Mean: {mean:.2f}')
-        print(f'Median: {median:.2f}')
-        print(f'Std: {std:.2f}')
+        image_stats(self.data, mask=mask, sigma_clip=sigma_clip, mask_sources=mask_sources, **kwargs)
         # if there are stats on the bias and sky background, print those also
         if isinstance(self.bias_sub, np.ndarray):
-            masked_data = np.ma.array(self.bias_sub, mask=mask)
-            if sigma_clip:
-                mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-            else:
-                mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+
             print('---------------------')
             print('Region Bias Subtracted Statistics:')
-            print(f'Min pixel value: {np.min(masked_data):.2f}')
-            print(f'Max pixel value: {np.max(masked_data):.2f}')
-            print(f'Mean: {mean:.2f}')
-            print(f'Median: {median:.2f}')
-            print(f'Std: {std:.2f}')
+            image_stats(self.bias_sub, mask=mask, sigma_clip=sigma_clip, mask_sources=mask_sources, **kwargs)
         if isinstance(self.sky_sub, np.ndarray):
-            masked_data = np.ma.array(self.bias_sub, mask=mask)
-            if sigma_clip:
-                mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-            else:
-                mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+
             print('---------------------')
             print('Sky Subtracted Data Statistics:')
-            print(f'Min pixel value: {np.min(masked_data):.2f}')
-            print(f'Max pixel value: {np.max(masked_data):.2f}')
-            print(f'Mean: {mean:.2f}')
-            print(f'Median: {median:.2f}')
-            print(f'Std: {std:.2f}')
+            image_stats(self.sky_sub, mask=mask, sigma_clip=sigma_clip, mask_sources=mask_sources, **kwargs)
 
         # return mean, median, std
 
@@ -454,13 +433,13 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     return mask
 
 
-def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs):
+def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
     """
     Calculates statistics on the background of the image data given.
 
     Parameters
     ----------
-    indata: array-like
+    imdata: array-like
         Data array of an image
     mask: numpy.ndarray (bool), optional
         A boolean mask with the same shape as data, where a True value
@@ -484,7 +463,7 @@ def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs
     """
     # if no mask is specified, mask any sources
     if mask_sources:
-        obj_mask = make_source_mask(indata, display_mask=True)
+        obj_mask = make_source_mask(imdata, display_mask=True)
         # if both a mask is specified and object masking is called for, combine the masks
         if mask_sources and mask:
             mask = mask + obj_mask
@@ -492,15 +471,15 @@ def image_stats(indata, mask=None, mask_sources=False, sigma_clip=True, **kwargs
         else:
             mask = obj_mask
 
-    # calculate the stats, with optional masks and optional sigma clipping
+    # apply the mask. If the mask is None, this effectively does nothing
+    masked_data = np.ma.array(imdata, mask=mask)
     if sigma_clip:
-        mean, median, std = sigma_clipped_stats(indata, mask=mask, **kwargs)
+        mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
     else:
-        # mask the data. If no mask is specified, mask is None
-        masked_data = np.ma.array(indata, mask=mask)
         mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
-    # display and return the values
+    print(f'Min pixel value: {np.min(masked_data):.2f}')
+    print(f'Max pixel value: {np.max(masked_data):.2f}')
     print(f'Mean: {mean:.2f}')
     print(f'Median: {median:.2f}')
     print(f'Std: {std:.2f}')
