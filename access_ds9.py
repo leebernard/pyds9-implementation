@@ -36,6 +36,8 @@ ds9display = pyds9.DS9(target='display', start='-title display')
 
 # open file
 filename = '/home/lee/Documents/k4m_160319_101212_ori.fits.fz[im2]'
+filename = '/home/lee/Documents/c4d_180111_004548_pri.fits.fz[N4]'
+
 ds9.set('file ' + filename)
 
 
