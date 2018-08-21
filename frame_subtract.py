@@ -29,5 +29,8 @@ with  fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_h
     for data in difference:
         data_list.append(data)
 
+    # for data in difference:
+    #     display.set('frame new')
+    #     display.set_np2arr(data)
 
 
