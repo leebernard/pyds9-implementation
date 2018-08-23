@@ -15,13 +15,13 @@ import timing
 
 def get_filenames(path, extension='', pattern=''):
     # retrieve all filenames from the directory
-    filename_list = os.listdir(biasframe_path)
+    filename_list = os.listdir(path)
 
     # convert extension and pattern to raw strings
     r_extension = "%r"%extension
     # ensure all filenames have the proper extension
 
-    fits_list = [biasframe_path + '/' + filename for filename in filename_list if
+    fits_list = [path + '/' + filename for filename in filename_list if
                  re.search(extension+r'$', filename) and re.search(pattern, filename)]
 
     return fits_list
@@ -40,7 +40,7 @@ with fits.open(fits_list[0]) as hdul:
     hdul.info()
     for hdu in hdul:
         if hdu.data is None:
-            print('Data is', hdu.data, ', skipped')
+            print('No Data found, skipped')
         else:
             print(hdu.data.shape)
             image_values.append(np.zeros(hdu.data.shape))
