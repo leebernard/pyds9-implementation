@@ -61,7 +61,7 @@ for fits_file in fits_list:
 
 # image_stacks = [np.stack(stack) for stack in image_stacks]
 
-testmean, __, __ = [sigma_clipped_stats(np.stack(stack), axis=0) for stack in image_stacks]
+# testmean, testmedian, __ = [sigma_clipped_stats(np.stack(stack), axis=0) for stack in image_stacks]
 
 testmedian = [np.median(np.stack(stack), axis=0) for stack in image_stacks]
 """
