@@ -59,9 +59,11 @@ for fits_file in fits_list:
         # datalist = [hdu.data for hdu in hdul if hdu.data is not None]
         # image_stacks.append(datalist)
 
-# image_stacks = [np.stack(stack, axis=0) for stack in image_stacks]
+# image_stacks = [np.stack(stack) for stack in image_stacks]
 
-testmedian = [np.median(np.stack(stack, axis=0)) for stack in image_stacks]
+testmean, __, __ = [sigma_clipped_stats(np.stack(stack), axis=0) for stack in image_stacks]
+
+testmedian = [np.median(np.stack(stack), axis=0) for stack in image_stacks]
 """
 # generate an array of zeros the size of the array
 image_values = []
