@@ -11,7 +11,7 @@ from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.stats import SigmaClip
 
-import timing
+# import timing
 
 def get_filenames(path, extension='', pattern=''):
     # retrieve all filenames from the directory
@@ -26,6 +26,26 @@ def get_filenames(path, extension='', pattern=''):
 
     return fits_list
 
+"""
+test code:
+list1 = [1, 2, 3, 4, 5]
+list2 = ['a', 'b', ]
+list2 = ['a', 'b', 'c', 'd', 'e']
+list3 = [6, 7, 8, 9, 10]
+overlist = [list1, list2, list3]
+len(overlist)
+3
+len(overlist[0])
+5
+overlist[0]
+[1, 2, 3, 4, 5]
+overlist[:]
+[[1, 2, 3, 4, 5], ['a', 'b', 'c', 'd', 'e'], [6, 7, 8, 9, 10]]
+overlist[:][0]
+[1, 2, 3, 4, 5]
+overlist[0][:]
+[1, 2, 3, 4, 5]
+"""
 
 biasframe_path = '/home/lee/Documents/bias_frames'
 extension = r'\.fits\.fz'
@@ -33,6 +53,14 @@ pattern = '(?=.*k4m)'
 
 # retrieve the filenames
 fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern)
+
+# try getting the median instead, by stacking the arrays
+image_stack = []
+for fits_file in fits_list:
+    with fits.open(fits_file) as hdul:
+        datalist = [hdu.data for hdu in hdul if hdu.data is not None]
+        image_stack.append(datalist)
+
 
 # generate an array of zeros the size of the array
 image_values = []
