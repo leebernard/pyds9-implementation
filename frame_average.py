@@ -10,26 +10,15 @@ import re
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.stats import SigmaClip
+from astropy.stats import sigma_clipped_stats
 
-# import timing
+from get_filenames import get_filenames
+import timing
 
-def get_filenames(path, extension='', pattern=''):
-    # retrieve all filenames from the directory
-    filename_list = os.listdir(path)
-
-    # convert extension and pattern to raw strings
-    r_extension = "%r"%extension
-    # ensure all filenames have the proper extension
-
-    fits_list = [path + '/' + filename for filename in filename_list if
-                 re.search(extension+r'$', filename) and re.search(pattern, filename)]
-
-    return fits_list
 
 """
 test code:
 list1 = [1, 2, 3, 4, 5]
-list2 = ['a', 'b', ]
 list2 = ['a', 'b', 'c', 'd', 'e']
 list3 = [6, 7, 8, 9, 10]
 overlist = [list1, list2, list3]
@@ -48,20 +37,32 @@ overlist[0][:]
 """
 
 biasframe_path = '/home/lee/Documents/bias_frames'
-extension = r'\.fits\.fz'
+extension = '.fits.fz'
 pattern = '(?=.*k4m)'
 
 # retrieve the filenames
-fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern)
+fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=True)
 
 # try getting the median instead, by stacking the arrays
-image_stack = []
+# generate empty list that matches number of data extensions
+with fits.open(fits_list[0]) as hdul:
+    image_stacks = [[] for hdu in hdul if hdu.data is not None]
 for fits_file in fits_list:
     with fits.open(fits_file) as hdul:
-        datalist = [hdu.data for hdu in hdul if hdu.data is not None]
-        image_stack.append(datalist)
+        backstep = 0
+        for n, hdu in enumerate(hdul):
+            if hdu.data is None:
+                backstep += 1
+            else:
+                image_stacks[n-backstep].append(hdu.data)
 
+        # datalist = [hdu.data for hdu in hdul if hdu.data is not None]
+        # image_stacks.append(datalist)
 
+# image_stacks = [np.stack(stack, axis=0) for stack in image_stacks]
+
+testmedian = [np.median(np.stack(stack, axis=0)) for stack in image_stacks]
+"""
 # generate an array of zeros the size of the array
 image_values = []
 with fits.open(fits_list[0]) as hdul:
@@ -122,5 +123,5 @@ ds9 = pyds9.DS9(target='ds9')
 for image in average_image:
     ds9.set('frame new')
     ds9.set_np2arr(image)
-
+"""
 

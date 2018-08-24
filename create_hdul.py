@@ -7,27 +7,15 @@ import os
 import re
 
 from astropy.io import fits
+from get_filenames import get_filenames
 
-
-def get_filenames(path, extension='', pattern=''):
-    # retrieve all filenames from the directory
-    filename_list = os.listdir(path)
-
-    # convert extension and pattern to raw strings
-    r_extension = "%r"%extension
-    # ensure all filenames have the proper extension
-
-    fits_list = [path + '/' + filename for filename in filename_list if
-                 re.search(extension+r'$', filename) and re.search(pattern, filename)]
-
-    return fits_list
 
 biasframe_path = '/home/lee/Documents/bias_frames'
-extension = r'\.fits\.fz'
+extension = '.fits.fz'
 pattern = '(?=.*k4m)'
-
+identifiers = ['231642', '225927', '231335']
 # retrieve the filenames
-fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern)
+fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=True)
 
 # method for making a copy of a hdul
 hdul = fits.open(fits_list[0])
