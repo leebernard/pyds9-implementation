@@ -7,12 +7,12 @@ from astropy.io import fits
 
 import timing
 def frame_subtract(minuend, subtrahend):
-    # use a generator expression to conserve memory
     difference = [minuend.data.astype('float64', casting='safe') - subtrahend.data.astype('float64', casting='safe')
                   for minuend, subtrahend in zip(minuend_hdul, subtrahend_hdul)
                   if minuend.data is not None and subtrahend.data is not None]
 
     return difference
+
 
 # filename1 = '/home/lee/Documents/bias_frames/c4d_170331_202028_zri.fits.fz'
 # filename2 = '/home/lee/Documents/bias_frames/c4d_170331_191113_zri.fits.fz'
