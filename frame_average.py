@@ -16,24 +16,6 @@ from get_filenames import get_filenames
 # import timing
 
 
-def stack_image_data(filename_list):
-    # make a list of empty lists to hold the data
-    with fits.open(filename_list[0]) as hdul:
-        image_stacks = [[] for hdu in hdul if hdu.data is not None]
-
-    # unpack the data in a fashion that can be stacked
-    for fits_file in filename_list:
-        with fits.open(fits_file) as hdul:
-            backstep = 0
-            for n, hdu in enumerate(hdul):
-                if hdu.data is None:
-                    backstep += 1
-                else:
-                    image_stacks[n - backstep].append(hdu.data)
-
-    return [np.stack(stack) for stack in image_stacks]
-
-
 def frame_mean(filename_list):
     """
     Returns the mean of a stack of images, loaded from disk.
@@ -172,16 +154,42 @@ extension = '.fits.fz'
 pattern = '(?=.*k4m)'
 
 # retrieve the filenames
-fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=True)
+filename_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=False)
 
+fits_list = [biasframe_path + '/' + filename for filename in filename_list]
 
 # frame_average, frame_counts = sigma_clipped_frame_average(fits_list, sigma=5)
 
 # try getting the median instead, by stacking the arrays
-frame_average = frame_mean(fits_list)
+frame_average = frame_median(fits_list)
+# insert a None, for the Primary HDU
+frame_average.insert(0, None)
 
 # for displaying the raw data
 # display = pyds9.DS9(target='display', start='-title display')
+
+
+with fits.open(fits_list[0]) as hdul:
+    # hdu_list = [hdu.copy() for hdu in hdul]
+    hdulcopy = fits.HDUList([hdu.copy() for hdu in hdul])
+
+# make generator for modyfying the fits file
+hdul_generator = (hdu for hdu in hdulcopy)
+
+
+
+for hdu, avg_data in zip(hdul_generator, frame_average):
+    hdu.data = avg_data
+    hdu.header.set('OBSTYPE', 'average zero')
+    # input('press Enter to continue')
+    if type(hdu) is fits.hdu.image.PrimaryHDU:
+        hdu.header.add_comment('Modified OBSTYPE')
+        hdu.header.add_comment('Changed data to the median of 15 zero frames, of which this is the first')
+        hdu.header.add_comment('Source file names:')
+        for filename in filename_list:
+            hdu.header.add_comment(filename)
+
+hdulcopy.writeto(biasframe_path + '/testaverage' + extension)
 
 ds9 = pyds9.DS9(target='ds9')
 
