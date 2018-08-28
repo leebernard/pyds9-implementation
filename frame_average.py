@@ -6,6 +6,7 @@ import numpy as np
 import os
 import pyds9
 import re
+import datetime
 
 from astropy.io import fits
 from astropy.stats import sigma_clip
@@ -16,19 +17,7 @@ from get_filenames import get_filenames
 # import timing
 
 
-def frame_mean(filename_list):
-    """
-    Returns the mean of a stack of images, loaded from disk.
-
-
-    Parameters
-    ----------
-    filename_list
-
-    Returns
-    -------
-
-    """
+def _frame_mean(filename_list):
     # make a list of empty lists to hold the data
     with fits.open(filename_list[0]) as hdul:
         image_stacks = [[] for hdu in hdul if hdu.data is not None]
@@ -48,7 +37,7 @@ def frame_mean(filename_list):
     return [np.mean(np.stack(stack), axis=0) for stack in image_stacks]
 
 
-def sigma_clipped_frame_average(filename_list, **kwargs):
+def _sigma_clipped_frame_average(filename_list, **kwargs):
     # generate an array of zeros the size of the array
     image_values = []
     with fits.open(filename_list[0]) as hdul:
@@ -107,7 +96,7 @@ def sigma_clipped_frame_average(filename_list, **kwargs):
     return average_image, pixel_counter
 
 
-def frame_median(filename_list):
+def _frame_median(filename_list):
     # make a list of empty lists to hold the data
     with fits.open(filename_list[0]) as hdul:
         image_stacks = [[] for hdu in hdul if hdu.data is not None]
@@ -161,7 +150,7 @@ fits_list = [biasframe_path + '/' + filename for filename in filename_list]
 # frame_average, frame_counts = sigma_clipped_frame_average(fits_list, sigma=5)
 
 # try getting the median instead, by stacking the arrays
-frame_average = frame_median(fits_list)
+frame_average = _frame_median(fits_list)
 # insert a None, for the Primary HDU
 frame_average.insert(0, None)
 
@@ -183,6 +172,7 @@ for hdu, avg_data in zip(hdul_generator, frame_average):
     hdu.header.set('OBSTYPE', 'average zero')
     # input('press Enter to continue')
     if type(hdu) is fits.hdu.image.PrimaryHDU:
+        hdu.header.add_comment(str(datetime.date.today()))
         hdu.header.add_comment('Modified OBSTYPE')
         hdu.header.add_comment('Changed data to the median of 15 zero frames, of which this is the first')
         hdu.header.add_comment('Source file names:')
