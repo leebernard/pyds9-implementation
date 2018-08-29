@@ -23,7 +23,7 @@ def _find_hdu_extension(extname, hdulist):
             print('No extension name.')
     else:
         # corresponding extension not found, raise error
-        raise RuntimeError('An extension correpsonding to the extension open in DS9 was not found.')
+        raise RuntimeError('A matching extension was not found.')
 
     return hdu_match
 
@@ -35,6 +35,37 @@ def _frame_subtract(minuend_hdul, subtrahend_hdul):
 
 
 def frame_subtract(minuend, subtrahend, display=True, write_to=None):
+    """
+    This function subtracts one HDUList from another, and returns the resultant
+     data.
+
+    This function expects a primary Header Data Unit and HDU extensions in a
+    list. It can handle a single Primary HDU, but in that case expects a list
+    of one. The HDULists can be passes directly as parameters using Astropy
+    pyfits, as a filename string, or as an instance of pyds9.DS9. In the
+    latter cases, the HDUlist will be opened from file or retrieved from DS9.
+    It should be noted that DS9 will only pass a list of one HDU, the HDU
+    that is loaded in the current frame.
+
+    Parameters
+    ----------
+    minuend: HDUList, filename, or DS9 instance
+        The source of the data to be subtracted from.
+    subtrahend: HDUList, filename, or DS9 instance
+        The source of the data to be subtracted.
+    display: bool, optional
+        If True, the result will be displayed in a Display instance of DS9,
+        in a new frame. If the Display instance of DS9 is not already
+        running, one will opened.
+    write_to: str
+        (To be implemented) Name of file to write result to. Will create a
+        new file if one does not already exist.
+
+    Returns
+    -------
+    difference:
+        array containing the data after subtraction 
+    """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
         minuend_hdul = minuend.get_pyfits()
@@ -86,7 +117,7 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     difference = _frame_subtract(minuend_hdul, subtrahend_hdul)
 
     if display:
-        display = pyds9.DS9(target='display', start='-title display')
+        display = pyds9.DS9(target='Display', start='-title Display')
         for array in difference:
             display.set('frame new')
             display.set_np2arr(array)
