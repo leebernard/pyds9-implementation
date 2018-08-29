@@ -64,7 +64,7 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     Returns
     -------
     difference:
-        array containing the data after subtraction 
+        array containing the data after subtraction
     """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
@@ -95,8 +95,8 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     # This requires matching the correct extension from file to the extension open in DS9
     # (this is mostly due to DS9 only passing primary HDUs)
 
-    # handling the cases seperately, because they require modifing different variables
-    # fist case: minuend is DS9.
+    # handling the cases separately, because they require modifying different variables
+    # first case: minuend is DS9.
     if type(minuend) is pyds9.DS9 and type(minuend) is not type(subtrahend):
         # retrieve extension name from DS9
         pattern = re.compile(r'(?<=\[).*(?=\])')

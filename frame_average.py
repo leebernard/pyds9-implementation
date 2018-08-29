@@ -7,40 +7,38 @@ import os
 import pyds9
 import re
 import datetime
+import gc
 
 from astropy.io import fits
+from contextlib import ExitStack
 from astropy.stats import sigma_clip
 from astropy.stats import SigmaClip
 from astropy.stats import sigma_clipped_stats
 
 from get_filenames import get_filenames
-# import timing
+import timing
 
 
-def _frame_mean(filename_list):
-    # make a list of empty lists to hold the data
-    with fits.open(filename_list[0]) as hdul:
-        image_stacks = [[] for hdu in hdul if hdu.data is not None]
+def _frame_mean(hdul_list):
+    # unpack the data
+    image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
 
-    # unpack the data in a fashion that can be stacked
-    for fits_file in filename_list:
-        with fits.open(fits_file) as hdul:
-            backstep = 0
-            for n, hdu in enumerate(hdul):
-                if hdu.data is None:
-                    backstep += 1
-                else:
-                    image_stacks[n - backstep].append(hdu.data)
-
-    # image_stacks = [np.stack(stack) for stack in image_stacks]
-
-    return [np.mean(np.stack(stack), axis=0) for stack in image_stacks]
+    # transpose the lists of data, then take the mean
+    return [np.mean(np.stack([hdu_data for hdu_data in data_tuple ]), axis=0) for data_tuple in zip(*image_stack)]
 
 
-def _sigma_clipped_frame_average(filename_list, **kwargs):
+def _frame_median(hdul_list):
+    # unpack the data
+    image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
+    # transpose the lists, then stack and take the median
+    return [np.median(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+
+
+def _sigma_clipped_frame_average(hdul_list, **kwargs):
     # generate an array of zeros the size of the array
     image_values = []
-    with fits.open(filename_list[0]) as hdul:
+    with hdul_list[0] as hdul:
         hdul.info()
         for hdu in hdul:
             if hdu.data is None:
@@ -57,32 +55,31 @@ def _sigma_clipped_frame_average(filename_list, **kwargs):
     # generate an object for sigmaclipping. Hopefully, this is faster than function calling each time
     sigclip = SigmaClip(**kwargs)
     # iterate through the list of files, summing up all values of corresponding pixels
-    for fits_file in filename_list:
-        with fits.open(fits_file) as hdul:
-            # a way of keeping track of how many hdu's have been skipped due to having no data
-            backstep = 0
-            for n, hdu in enumerate(hdul):
-                print(backstep)
-                if hdu.data is None:
-                    # if there is no data entry for this hdu, skip it while keeping track
-                    backstep += 1
-                else:
-                    # extract the sigma clipped data
+    for hdul in hdul_list:
 
-                    clipped_data = sigclip(hdu.data)
-                    # add the sigma clipped data to the image array average, with clipped values set to zero
-                    # uses tracker to align entries
-                    image_values[n - backstep] = image_values[n - backstep] + clipped_data.filled(0)
+        # a way of keeping track of how many hdu's have been skipped due to having no data
+        backstep = 0
+        for n, hdu in enumerate(hdul):
+            print(backstep)
+            if hdu.data is None:
+                # if there is no data entry for this hdu, skip it while keeping track
+                backstep += 1
+            else:
+                # extract the sigma clipped data
 
-                    # keep tract of which pixels had a value added to them
-                    pixel_counter[n - backstep] = pixel_counter[n - backstep] + ~clipped_data.mask
+                clipped_data = sigclip(hdu.data)
+                # add the sigma clipped data to the image array average, with clipped values set to zero
+                # uses tracker to align entries
+                image_values[n - backstep] = image_values[n - backstep] + clipped_data.filled(0)
 
-                    # # test section: comment out or remove in final version
-                    # image_values[n - backstep] = image_values[n - backstep] + hdu.data
-                    # pixel_counter[n - backstep] = pixel_counter[n - backstep] + np.ones(image_values[n - backstep].shape)
-                    # display.set_np2arr(hdu.data)
-            print('hdu:', hdul.filename())
+                # keep tract of which pixels had a value added to them
+                pixel_counter[n - backstep] = pixel_counter[n - backstep] + ~clipped_data.mask
 
+                # # test section: comment out or remove in final version
+                # image_values[n - backstep] = image_values[n - backstep] + hdu.data
+                # pixel_counter[n - backstep] = pixel_counter[n - backstep] + np.ones(image_values[n - backstep].shape)
+                # display.set_np2arr(hdu.data)
+        print('hdu:', hdul.filename())
     # make a copy, to preserve how many pixels got counted zero times.
     # The pixels with zero counts are pixels that got sigma clipped out entirely
     average_counter = pixel_counter.copy()
@@ -96,27 +93,8 @@ def _sigma_clipped_frame_average(filename_list, **kwargs):
     return average_image, pixel_counter
 
 
-def _frame_median(filename_list):
-    # make a list of empty lists to hold the data
-    with fits.open(filename_list[0]) as hdul:
-        image_stacks = [[] for hdu in hdul if hdu.data is not None]
-
-    # unpack the data in a fashion that can be stacked
-    for fits_file in fits_list:
-        with fits.open(fits_file) as hdul:
-            backstep = 0
-            for n, hdu in enumerate(hdul):
-                if hdu.data is None:
-                    backstep += 1
-                else:
-                    image_stacks[n - backstep].append(hdu.data)
-
-    # image_stacks = [np.stack(stack) for stack in image_stacks]
-
-    frame_median = [np.median(np.stack(stack), axis=0) for stack in image_stacks]
-
-    return frame_median
-
+def frame_average():
+    pass
 
 """
 test code:
@@ -124,6 +102,11 @@ list1 = [1, 2, 3, 4, 5]
 list2 = ['a', 'b', 'c', 'd', 'e']
 list3 = [6, 7, 8, 9, 10]
 overlist = [list1, list2, list3]
+
+newlist = [ [overlist[i] for i in range(len(list1)]
+print(newlist)
+newlist = [[entry for entry in test_tuple] for test_tuple in zip(*overlist)]
+print(newlist)
 len(overlist)
 3
 len(overlist[0])
@@ -147,6 +130,14 @@ filename_list = get_filenames(biasframe_path, extension=extension, pattern=patte
 
 fits_list = [biasframe_path + '/' + filename for filename in filename_list]
 
+# a better way of opening multiple files
+with ExitStack() as fits_stack:
+    hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
+
+    # image_average = _sigma_clipped_frame_average()
+    image_median = _frame_median(hdul_list)
+
+"""
 # frame_average, frame_counts = sigma_clipped_frame_average(fits_list, sigma=5)
 
 # try getting the median instead, by stacking the arrays
@@ -186,4 +177,4 @@ ds9 = pyds9.DS9(target='ds9')
 for image in frame_average:
     ds9.set('frame new')
     ds9.set_np2arr(image)
-
+"""
