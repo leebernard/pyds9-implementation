@@ -93,9 +93,50 @@ def _sigma_clipped_frame_average(hdul_list, **kwargs):
     return average_image, pixel_counter
 
 
-def frame_average():
-    pass
+def frame_average(filename_list, sigma_clip=False, **kwargs):
+    """
 
+    Parameters
+    ----------
+    filename_list: list of strings
+        Strings containing the file names of the frames to be averaged.
+    sigma_clip: bool, optional
+        If True, the data will be sigma clipped
+    kwargs: dict, optional
+        keyword arguments to be passed to sigma clipping
+
+    Returns
+    -------
+
+    """
+    with ExitStack() as fits_stack:
+        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
+        if sigma_clip:
+            return _sigma_clipped_frame_average(hdul_list, **kwargs)
+        else:
+            return _frame_mean(hdul_list)
+
+def frame_median(filename_list):
+    """
+    This function returns the median of several frames.
+
+    The the frames are access from disk, by passing the file names. The median
+    is intended to be a fast way of getting a bias frame, while removing any
+    outliers like cosmic rays.
+
+    Parameters
+    ----------
+    filename_list: list of strings
+        Strings containing the file names of the frames to be averaged.
+
+    Returns
+    -------
+        list of ndarrays: frame data on a per amplifier basis, after taking the median
+    """
+
+    with ExitStack() as fits_stack:
+        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
+        return _frame_median(hdul_list)
 """
 test code:
 list1 = [1, 2, 3, 4, 5]
