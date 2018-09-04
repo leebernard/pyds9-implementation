@@ -70,7 +70,7 @@ def _sigma_clipped_frame_average(image_stack, **kwargs):
     return average_image, pixel_counter
 
 
-def frame_average(filename_list, sigma_clip=False, **kwargs):
+def frame_average(filename_list, sigma_clip=False, sigma=3.0, iters=5, **kwargs):
     """
     This function returns an average of images stored in fits files, by
     accessing them via a list of filenames.
@@ -97,8 +97,15 @@ def frame_average(filename_list, sigma_clip=False, **kwargs):
         Strings containing the file names of the frames to be averaged.
     sigma_clip: bool, optional
         If True, the data will be sigma clipped
+    sigma: float, optional
+        The number of standard deviations to use for both the lower and upper
+        clipping limit.
+    iters: int or None, optional
+        The number of iterations to perform sigma clipping, or None to clip
+        until convergence is achieved (i.e., continue until the last iteration
+        clips nothing).
     kwargs: dict, optional
-        keyword arguments to be passed to sigma clipping
+        keyword options for sigma clipping. See Astropy SigmaClip.
 
     Returns
     -------
@@ -107,7 +114,6 @@ def frame_average(filename_list, sigma_clip=False, **kwargs):
     pixel_tracker: list
         A list of ndarrays containing how many data point were used to produce
         an average, on a pixel by pixel basis.
-
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
@@ -115,7 +121,7 @@ def frame_average(filename_list, sigma_clip=False, **kwargs):
         image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
 
     if sigma_clip:
-        return _sigma_clipped_frame_average(image_stack, **kwargs)
+        return _sigma_clipped_frame_average(image_stack, sigma, iters, **kwargs)
     else:
         return _frame_mean(image_stack)
 
