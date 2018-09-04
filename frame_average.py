@@ -3,9 +3,9 @@ A function for pixel by pixel averaging of an arbitrary number of frames
 """
 
 import numpy as np
-import os
+# import os
 import pyds9
-import re
+# import re
 import datetime
 import gc
 
@@ -16,50 +16,31 @@ from astropy.stats import SigmaClip
 from astropy.stats import sigma_clipped_stats
 
 from get_filenames import get_filenames
-# import timing
+import timing
 
 
-def _frame_mean(hdul_list):
-    # unpack the data
-    image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
-
+def _frame_mean(image_stack):
     # generate a list that contains how many data points were used to produce the average in each pixel
     # this can be pregenerated in this case, because no data points will be rejected
-    pixel_counter = [[np.ones(image.shape) * len(image_stack) for image in image_list] for image_list in image_stack]
+    pixel_counter = [np.full_like(image, len(image_stack)) for image in image_stack[0]]
 
     # transpose the lists of data, then take the mean
-    frame_mean = [np.mean(np.stack([hdu_data for hdu_data in data_tuple ]), axis=0) for data_tuple in zip(*image_stack)]
+    frame_mean = [np.mean(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
 
     return frame_mean, pixel_counter
 
 
-def _frame_median(hdul_list):
-    # unpack the data
-    image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+def _frame_median(image_stack):
 
     # transpose the lists, then stack and take the median
     return [np.median(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
 
 
-def _sigma_clipped_frame_average(hdul_list, **kwargs):
+def _sigma_clipped_frame_average(image_stack, **kwargs):
     # generate an array of zeros the size of the array
-    image_values = []
-    with hdul_list[0] as hdul:
-        hdul.info()
-        for hdu in hdul:
-            if hdu.data is None:
-                print('No Data found, skipped')
-            else:
-                print(hdu.data.shape)
-                image_values.append(np.zeros(hdu.data.shape))
-        # generate an array that keeps track of how many pixels have been added, on a pixel by pixel basis
-    pixel_counter = image_values.copy()
+    image_values = [np.zeros_like(image_data, dtype=float) for image_data in image_stack[0]]
 
-    # for displaying the raw data
-    # display = pyds9.DS9(target='display', start='-title display')
-
-    # unpack the data, filtering out None values
-    image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+    pixel_counter = [np.zeros_like(image_data, dtype=int) for image_data in image_stack[0]]
 
     # generate an object for sigmaclipping. Hopefully, this is faster than function calling each time
     sigclip = SigmaClip(**kwargs)
@@ -75,11 +56,6 @@ def _sigma_clipped_frame_average(hdul_list, **kwargs):
 
             # keep tract of which pixels had a value added to them
             pixel_counter[n] = pixel_counter[n] + ~clipped_data.mask
-
-            # # test section: comment out or remove in final version
-            # image_values[n - backstep] = image_values[n - backstep] + hdu.data
-            # pixel_counter[n - backstep] = pixel_counter[n - backstep] + np.ones(image_values[n - backstep].shape)
-            # display.set_np2arr(hdu.data)
 
     # make a copy, to preserve how many pixels got counted zero times.
     # The pixels with zero counts are pixels that got sigma clipped out entirely
@@ -127,15 +103,22 @@ def frame_average(filename_list, sigma_clip=False, **kwargs):
     Returns
     -------
     frame_mean: list
-        A list of ndarrays containing image data aftera averaging
+        A list of ndarrays containing image data after averaging
+    pixel_tracker: list
+        A list of ndarrays containing how many data point were used to produce
+        an average, on a pixel by pixel basis.
 
     """
+    # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
         hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
-        if sigma_clip:
-            return _sigma_clipped_frame_average(hdul_list, **kwargs)
-        else:
-            return _frame_mean(hdul_list)
+        image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
+    if sigma_clip:
+        return _sigma_clipped_frame_average(image_stack, **kwargs)
+    else:
+        return _frame_mean(image_stack)
+
 
 def frame_median(filename_list):
     """
@@ -156,8 +139,12 @@ def frame_median(filename_list):
     """
 
     with ExitStack() as fits_stack:
-        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
-        return _frame_median(hdul_list)
+        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
+        image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
+    return _frame_median(image_stack)
+
+
 """
 test code:
 list1 = [1, 2, 3, 4, 5]
@@ -192,15 +179,34 @@ filename_list = get_filenames(biasframe_path, extension=extension, pattern=patte
 
 fits_list = [biasframe_path + '/' + filename for filename in filename_list]
 
-# a better way of opening multiple files
-with ExitStack() as fits_stack:
-    hdul_list = [fits_stack.enter_context(fits.open(fits_name, memmap=False)) for fits_name in fits_list]
+# image_average = frame_median(fits_list)
+# image_average, pixel_tracker = frame_average(fits_list)
+image_average, pixel_tracker = frame_average(fits_list, sigma_clip=True, sigma=5, iters=3)
+ds9 = pyds9.DS9(target='ds9')
 
-    # image_average = _sigma_clipped_frame_average(hdul_list)
-    # image_median = _frame_median(hdul_list)
-    image_average = _frame_mean(hdul_list)
+print('Amount of garbage:')
+print(gc.collect())
+
+for image in image_average:
+    ds9.set('frame new')
+    try:
+        ds9.set_np2arr(image)
+    except ValueError:
+        print('invalid data')
+        print('data:', image)
+
+#     # image_average = _sigma_clipped_frame_average(hdul_list)
+#     image_median = _frame_median(hdul_list)
+#     # image_average = _frame_mean(hdul_list)
+
+
 
 """
+# a better way of opening multiple files
+with ExitStack() as fits_stack:
+    hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
+    image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
 # frame_average, frame_counts = sigma_clipped_frame_average(fits_list, sigma=5)
 
 # try getting the median instead, by stacking the arrays
