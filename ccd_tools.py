@@ -290,7 +290,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     # print(raw_string)
 
     # transform string into list that is organized by lines
-    pattern = re.compile('.+')
+    pattern = re.compile('.+')  # regex pattern that finds everything not a newline
     str_list = pattern.findall(raw_string)
 
     try:
@@ -309,7 +309,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
 
     print('Region definition: ', str_list)
     # parse the meta data string
-    # pattern is all sequences of digits that may or may not contain a period
+    # pattern finds all sequences of digits that may or may not contain a period
     pattern = re.compile('\d+\.?\d*')
     region_def = pattern.findall(str_list[0])  # should probably add an exception test here
 

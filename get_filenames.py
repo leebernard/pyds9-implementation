@@ -40,8 +40,8 @@ def get_filenames(path, extension=None, pattern=None, identifiers=None, include_
     identifiers: list or tuple, optional
         Instead of a single string, a list of strings or numbers can be
         provided. The list can contain whole filenames, or just portions of the
-        filenames. This does not support Regular Expressions, but does support
-        integers.
+        filenames. If a number is passed, the number is converted to a string.
+        This does not support Regular Expressions.
     include_path: bool, optional
         If True, the filenames are returned with the path appended to them.
 

@@ -26,6 +26,7 @@ def _frame_mean(image_stack):
 
     # transpose the lists of data, then take the mean
     frame_mean = [np.mean(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+    std_dev = np.std()
 
     return frame_mean, pixel_counter
 
@@ -70,33 +71,36 @@ def _sigma_clipped_frame_average(image_stack, **kwargs):
     return average_image, pixel_counter
 
 
-def frame_average(filename_list, sigma_clip=False, sigma=3.0, iters=5, **kwargs):
+def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     """
-    This function returns an average of images stored in fits files, by
-    accessing them via a list of filenames.
+    This function calculates a sigma clipped average of images stored in fits
+    files, by accessing them via a list of filenames.
 
     This function averages frame data that has been stored on disk in fits
     files. It does so by taking a list of file names. If the files are not in
     the current directory, the file path should be included in the file name.
     This function presumes that each fits file contains a Header Data Unit
     with extensions: the averages are computed on a per extension basis, and
-    returned as a list of data arrays. How many data points are used to
-    calculate the average is kept track of on a pixel basis, and returned as a
-    list of integer arrays that match the size of the list of image data arrays.
+    returned as a list of data arrays.
 
-    There is an option for sigma clipped: however, sigma clipping significantly
-    increases the runtime. If a particular pixel is clipped out in all images,
-    the average of that pixel will be returned as zero. It's corresponding
-    location in the data points tracker will also be zero. If you wish to
+    Which pixels to clip is calculated by comparing the pixel to the standard
+    deviation of the image the pixel is in. How many data points are used to
+    calculate the average is kept track of on a pixel basis, and is returned
+    as a list of integer arrays that matches the list of image data arrays. If
+    a particular pixel is clipped out in all images, the average of that pixel
+    will be returned as zero. It's corresponding location in the data points
+    tracker will also be zero.
+
+    sigma clipping significantly increases the runtime. If you wish to
     eliminate defects such as cosmic rays, but do not want to wait for the
     sigma clipping to finish, consider using frame_median.
 
-    Parameters
+
+
+     Parameters
     ----------
     filename_list: list of strings
         Strings containing the file names of the frames to be averaged.
-    sigma_clip: bool, optional
-        If True, the data will be sigma clipped
     sigma: float, optional
         The number of standard deviations to use for both the lower and upper
         clipping limit.
@@ -120,10 +124,39 @@ def frame_average(filename_list, sigma_clip=False, sigma=3.0, iters=5, **kwargs)
         hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
         image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
 
-    if sigma_clip:
-        return _sigma_clipped_frame_average(image_stack, sigma, iters, **kwargs)
-    else:
-        return _frame_mean(image_stack)
+    return _sigma_clipped_frame_average(image_stack, sigma, iters, **kwargs)
+
+
+def frame_average(filename_list):
+    """
+    This function returns an average of images stored in fits files, by
+    accessing them via a list of filenames.
+
+    This function averages frame data that has been stored on disk in fits
+    files. It does so by taking a list of file names. If the files are not in
+    the current directory, the file path should be included in the file name.
+    This function presumes that each fits file contains a Header Data Unit
+    with extensions: the averages are computed on a per extension basis, and
+    returned as a list of data arrays. How many data points are used to
+    calculate the average is kept track of on a pixel basis, and returned as a
+    list of integer arrays that match the size of the list of image data arrays.
+
+    Parameters
+    ----------
+    filename_list: list of strings
+        Strings containing the file names of the frames to be averaged.
+
+    Returns
+    -------
+    frame_mean: list
+        A list of ndarrays containing image data after averaging
+    """
+    # unpack the data, ignoring None values
+    with ExitStack() as fits_stack:
+        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
+        image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
+    return _frame_mean(image_stack)
 
 
 def frame_median(filename_list):
@@ -178,16 +211,16 @@ overlist[0][:]
 
 biasframe_path = '/home/lee/Documents/bias_frames'
 extension = '.fits.fz'
-pattern = '(?=.*k4m)'
+pattern = '(?=.*k4m)'  # look-ahead regex pattern that checks for 'k4m'
 
 # retrieve the filenames
 filename_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=False)
 
 fits_list = [biasframe_path + '/' + filename for filename in filename_list]
 
-# image_average = frame_median(fits_list)
+image_average = frame_median(fits_list)
 # image_average, pixel_tracker = frame_average(fits_list)
-image_average, pixel_tracker = frame_average(fits_list, sigma_clip=True, sigma=5, iters=3)
+# image_average, pixel_tracker = frame_average(fits_list, sigma_clip=True, sigma=5, iters=3)
 ds9 = pyds9.DS9(target='ds9')
 
 print('Amount of garbage:')

@@ -99,7 +99,7 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     # first case: minuend is DS9.
     if type(minuend) is pyds9.DS9 and type(minuend) is not type(subtrahend):
         # retrieve extension name from DS9
-        pattern = re.compile(r'(?<=\[).*(?=\])')
+        pattern = re.compile(r'(?<=\[).*(?=\])')  # pattern that retrieves everything between '[]'
         extension_name = pattern.search(minuend.get('file'))[0]
 
         subtrahend_hdul = [_find_hdu_extension(extension_name, subtrahend_hdul)]
@@ -107,7 +107,7 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     # second case: subtrahend is DS9. This case is not expected, but is included for robustness
     if type(subtrahend) is pyds9.DS9 and type(subtrahend) is not type(minuend):
         # retrieve extension name from DS9
-        pattern = re.compile(r'(?<=\[).*(?=\])')
+        pattern = re.compile(r'(?<=\[).*(?=\])')  # pattern that retrieves everything between '[]'
         extension_name = pattern.search(subtrahend.get('file'))[0]
 
         # set minuend to be the corresponding extension
