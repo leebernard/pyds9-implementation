@@ -20,33 +20,43 @@ import timing
 
 
 def _frame_mean(image_stack):
-    # generate a list that contains how many data points were used to produce the average in each pixel
-    # this can be pregenerated in this case, because no data points will be rejected
-    pixel_counter = [np.full_like(image, len(image_stack)) for image in image_stack[0]]
-
     # transpose the lists of data, then take the mean
     frame_mean = [np.mean(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
-    std_dev = np.std()
+    # transpose the lists of data, than take the std deviation and calculate error.
+    # the error is calculated as std_dev/sqrt(n)
+    pixel_error = [np.std(np.stack([hdu_data for hdu_data in data_tuple]) / np.sqrt(len(image_stack)), axis=0) for
+                   data_tuple in zip(*image_stack)]
 
-    return frame_mean, pixel_counter
+    return frame_mean, pixel_error
 
 
 def _frame_median(image_stack):
 
     # transpose the lists, then stack and take the median
-    return [np.median(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+    frame_median = [np.median(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+
+    # transpose the lists of data, than take the std deviation.
+    # the error is calculated as 1.253*std_dev/sqrt(n)
+    # Note that this is correct only for normal distributions, which is almost certainly not the case
+    # Therefore these error values are suspect
+    pixel_error = [1.253 * np.std(np.stack([hdu_data for hdu_data in data_tuple]) / np.sqrt(len(image_stack)), axis=0)
+                   for data_tuple in zip(*image_stack)]
+
+    return frame_median, pixel_error
 
 
 def _sigma_clipped_frame_average(image_stack, **kwargs):
     # generate an array of zeros the size of the array
     image_values = [np.zeros_like(image_data, dtype=float) for image_data in image_stack[0]]
 
+    variance_tracker = np.zeros(len(image_stack[0]))
     pixel_counter = [np.zeros_like(image_data, dtype=int) for image_data in image_stack[0]]
 
     # generate an object for sigmaclipping. Hopefully, this is faster than function calling each time
     sigclip = SigmaClip(**kwargs)
     # iterate through the list of files, summing up all values of corresponding pixels
     for image_list in image_stack:
+        print('Variance:', variance_tracker)
         for n, image_data in enumerate(image_list):
             # extract the sigma clipped data
 
@@ -54,6 +64,9 @@ def _sigma_clipped_frame_average(image_stack, **kwargs):
             # add the sigma clipped data to the image array average, with clipped values set to zero
             # uses tracker to align entries
             image_values[n] = image_values[n] + clipped_data.filled(0)
+
+            # keep track of the average variance
+            variance_tracker[n] += np.ma.var(clipped_data)/len(image_stack)
 
             # keep tract of which pixels had a value added to them
             pixel_counter[n] = pixel_counter[n] + ~clipped_data.mask
@@ -66,9 +79,12 @@ def _sigma_clipped_frame_average(image_stack, **kwargs):
         counter[counter == 0] = 1
 
     # compute average
-    average_image = [image / counter for image, counter in zip(image_values, average_counter)]
+    average_image = [image/counter for image, counter in zip(image_values, average_counter)]
 
-    return average_image, pixel_counter
+    # compute error
+    pixel_error = [np.sqrt(image_variance/counter) for image_variance, counter in zip(variance_tracker, average_counter)]
+
+    return average_image, pixel_error, pixel_counter
 
 
 def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
@@ -83,7 +99,7 @@ def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     with extensions: the averages are computed on a per extension basis, and
     returned as a list of data arrays.
 
-    Which pixels to clip is calculated by comparing the pixel to the standard
+    Pixels are clipped by comparing the pixel to the standard
     deviation of the image the pixel is in. How many data points are used to
     calculate the average is kept track of on a pixel basis, and is returned
     as a list of integer arrays that matches the list of image data arrays. If
@@ -91,11 +107,16 @@ def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     will be returned as zero. It's corresponding location in the data points
     tracker will also be zero.
 
-    sigma clipping significantly increases the runtime. If you wish to
+    Error is calculated by taking the average variance of the clipped image
+    data, and dividing the result by the pixel tracker. This produces an array
+    of the same shape as the original image, with entries containing variances
+    on a pixel by pixel basis that have been reduced by the number of pixels
+    used to calculate the average for that pixel. The elementwise square root
+    of this array is returned as the error.
+
+    Sigma clipping significantly increases the runtime. If you wish to
     eliminate defects such as cosmic rays, but do not want to wait for the
     sigma clipping to finish, consider using frame_median.
-
-
 
      Parameters
     ----------
@@ -115,6 +136,8 @@ def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     -------
     frame_mean: list
         A list of ndarrays containing image data after averaging
+    pixel_error: list
+        A list of ndarrays containing the error on the average of each pixel.
     pixel_tracker: list
         A list of ndarrays containing how many data point were used to produce
         an average, on a pixel by pixel basis.
@@ -129,17 +152,21 @@ def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
 
 def frame_average(filename_list):
     """
-    This function returns an average of images stored in fits files, by
+    This function returns an average and error estimate of images stored in fits files, by
     accessing them via a list of filenames.
 
     This function averages frame data that has been stored on disk in fits
     files. It does so by taking a list of file names. If the files are not in
     the current directory, the file path should be included in the file name.
     This function presumes that each fits file contains a Header Data Unit
-    with extensions: the averages are computed on a per extension basis, and
-    returned as a list of data arrays. How many data points are used to
-    calculate the average is kept track of on a pixel basis, and returned as a
-    list of integer arrays that match the size of the list of image data arrays.
+    with extensions. Data is taken from the extensions, stacked, and the
+    averages computed. This produces a list of data arrays corresponding to
+    the HDU data arrays.
+
+    The error is calculated by taking the standard deviation of the data used
+    to calculate the mean, on a pixel by pixel basis, and then dividing by the
+    square root of the number of frames. This produces a list of arrays the
+    same shape as the frame data.
 
     Parameters
     ----------
@@ -150,22 +177,38 @@ def frame_average(filename_list):
     -------
     frame_mean: list
         A list of ndarrays containing image data after averaging
+    pixel_error: list
+        A list of ndarrays correspoding to frame_mean, that contains the
+        per-pixel error on the average.
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
         hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
         image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
 
-    return _frame_mean(image_stack)
+    return_value = _frame_mean(image_stack)
+
+    # clean up the mess
+    print('Amount of garbage:')
+    print(gc.collect())
+    return return_value
 
 
 def frame_median(filename_list):
     """
     This function returns the median of several frames.
 
-    The the frames are access from disk, by passing the file names. The median
-    is intended to be a fast way of getting a bias frame, while removing any
-    outliers like cosmic rays.
+    The frames are accessed from disk, by passing the file names. If the files
+    are not in the current directory, the file path should be included in the
+    file name. This function presumes that each fits file contains a Header
+    Data Unit with extensions. The data is stacked, and the median calculated
+    on a per pixel basis. The median is intended to be a fast way of getting
+    a bias frame, with some robustness against any outliers like cosmic rays. 
+
+    The error is calculated by finding the standard error on the mean, and
+    multiplying by 1.253. Note that this only gives accurate error estimates
+    for data that is normally distributed. This should be kept in mind when
+    reviewing errors on data sets that contain outliers.
 
     Parameters
     ----------
@@ -184,7 +227,7 @@ def frame_median(filename_list):
     return _frame_median(image_stack)
 
 
-"""
+'''
 test code:
 list1 = [1, 2, 3, 4, 5]
 list2 = ['a', 'b', 'c', 'd', 'e']
@@ -207,7 +250,7 @@ overlist[:][0]
 [1, 2, 3, 4, 5]
 overlist[0][:]
 [1, 2, 3, 4, 5]
-"""
+'''
 
 biasframe_path = '/home/lee/Documents/bias_frames'
 extension = '.fits.fz'
@@ -218,14 +261,14 @@ filename_list = get_filenames(biasframe_path, extension=extension, pattern=patte
 
 fits_list = [biasframe_path + '/' + filename for filename in filename_list]
 
-image_average = frame_median(fits_list)
-# image_average, pixel_tracker = frame_average(fits_list)
-# image_average, pixel_tracker = frame_average(fits_list, sigma_clip=True, sigma=5, iters=3)
+image_average, pixel_error = frame_median(fits_list)
+# image_average, pixel_error = frame_average(fits_list)
+# image_average, pixel_error, pixel_tracker = frame_average(fits_list, sigma_clip=True, sigma=5)
+
+# print('Amount of garbage:')
+# print(gc.collect())
+
 ds9 = pyds9.DS9(target='ds9')
-
-print('Amount of garbage:')
-print(gc.collect())
-
 for image in image_average:
     ds9.set('frame new')
     try:
@@ -240,7 +283,7 @@ for image in image_average:
 
 
 
-"""
+'''
 # a better way of opening multiple files
 with ExitStack() as fits_stack:
     hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
@@ -285,4 +328,4 @@ ds9 = pyds9.DS9(target='ds9')
 for image in frame_average:
     ds9.set('frame new')
     ds9.set_np2arr(image)
-"""
+'''

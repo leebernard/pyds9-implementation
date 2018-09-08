@@ -15,7 +15,7 @@ import re
 # pattern = '(?=.*k4m)'
 # identifiers = [120]
 
-def get_filenames(path, extension=None, pattern=None, identifiers=None, include_path=False):
+def get_filenames(path='.', extension=None, pattern=None, identifiers=None, include_path=False):
     """
     Retrieves a list containing the filenames from a target directory.
 
@@ -26,12 +26,13 @@ def get_filenames(path, extension=None, pattern=None, identifiers=None, include_
 
     Parameters
     ----------
-    path: string or path-like object
-        The path from which to retrieve the filepaths
+    path: string or path-like object, optional
+        The path from which to retrieve the filepaths. Default behavior is to
+        list the current directory.
     extension: string, optional
         The extension of the filenames to be retrieved. This works by comparing
          the end of the entry names to the string specified, so it need not be
-         an extension, merely the end of entry-name you wish to retrieve
+        an extension, merely the end of entry-name you wish to retrieve.
     pattern: string, optional
         A pattern by which to filter what filenames and entries are returned. This
         can be the whole filename, or just a portion. Alternately, a Regular
