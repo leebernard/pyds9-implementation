@@ -10,6 +10,13 @@ from astropy.io import fits
 from get_filenames import get_filenames
 
 
+def _copy_hdul(hdul):
+    # iterate through the HDUList, copying each header data unit
+    hdu_list = [hdu.copy() for hdu in hdul]
+    # generate and return a new HDUList
+    return fits.HDUList(hdu_list)
+
+
 biasframe_path = '/home/lee/Documents/bias_frames'
 extension = '.fits.fz'
 pattern = '(?=.*k4m)'

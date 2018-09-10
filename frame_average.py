@@ -87,6 +87,66 @@ def _sigma_clipped_frame_average(image_stack, **kwargs):
     return average_image, pixel_error, pixel_counter
 
 
+def _copy_hdul(hdul):
+    # iterate through the HDUList, copying each header data unit
+    hdu_list = [hdu.copy() for hdu in hdul]
+    # generate and return a new HDUList
+    return fits.HDUList(hdu_list)
+
+
+def _write_average_data_to_file(data_list, writeto_filename, source_file_list=None, file_path='.', comment_string=None):
+    """
+    This is a specific method for frame averaging.
+
+    This is a method specific to averaging frames, so this docstring is not
+    published as part of the documentation. However, this method contains
+    important techniques for creating new HDULs from data derived from other
+    HDULs, so it is being given formal documentation.
+
+    This function takes the Header Data Units from the entry of a list of file
+    names, and replaces the data with the data list provided. It then modifies
+    the Primary header to indicate that the data is an average of several
+    frames, and adds the source filenames as a comment. It then writes the new
+    HDUL to file, with the specified file name and directory.
+
+    Parameters
+    ----------
+    data_list
+    writeto_filename
+    source_file_list
+    file_path
+    comment_string
+
+    Returns
+    -------
+
+    """
+
+    # add a None to the start of the data list, for the primary HDU
+    data_list.insert(0, None)
+    # copy the first HDUList
+    with fits.open(file_path + '/' + source_file_list[0]) as hdul:
+        hdulcopy = _copy_hdul(hdul)
+
+    # make generator for modifying the fits file
+    hdul_generator = (hdu for hdu in hdulcopy)
+
+    for hdu, avg_data in zip(hdul_generator, data_list):
+        hdu.data = avg_data
+        hdu.header.set('OBSTYPE', 'average zero')
+        # input('press Enter to continue')
+        if type(hdu) is fits.hdu.image.PrimaryHDU:
+            hdu.header.add_comment(str(datetime.date.today()))
+            hdu.header.add_comment('Modified OBSTYPE')
+            if comment_string:
+                hdu.header.add_comment(comment_string)
+            hdu.header.add_comment('Source file names:')
+            for filename in filename_list:
+                hdu.header.add_comment(filename)
+
+    hdulcopy.writeto(file_path + '/' + writeto_filename)
+
+
 def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     """
     This function calculates a sigma clipped average of images stored in fits
@@ -194,7 +254,7 @@ def frame_average(filename_list):
     return return_value
 
 
-def frame_median(filename_list):
+def frame_median(filename_list, writeto_filename=None):
     """
     This function returns the median of several frames.
 
@@ -203,7 +263,7 @@ def frame_median(filename_list):
     file name. This function presumes that each fits file contains a Header
     Data Unit with extensions. The data is stacked, and the median calculated
     on a per pixel basis. The median is intended to be a fast way of getting
-    a bias frame, with some robustness against any outliers like cosmic rays. 
+    a bias frame, with some robustness against any outliers like cosmic rays.
 
     The error is calculated by finding the standard error on the mean, and
     multiplying by 1.253. Note that this only gives accurate error estimates
@@ -283,7 +343,7 @@ for image in image_average:
 
 
 
-'''
+
 # a better way of opening multiple files
 with ExitStack() as fits_stack:
     hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in fits_list]
@@ -291,41 +351,21 @@ with ExitStack() as fits_stack:
 
 # frame_average, frame_counts = sigma_clipped_frame_average(fits_list, sigma=5)
 
-# try getting the median instead, by stacking the arrays
-frame_average = _frame_median(fits_list)
-# insert a None, for the Primary HDU
-frame_average.insert(0, None)
+# # try getting the median instead, by stacking the arrays
+# frame_average = _frame_median(fits_list)
+# # insert a None, for the Primary HDU
+# frame_average.insert(0, None)
 
 # for displaying the raw data
 # display = pyds9.DS9(target='display', start='-title display')
 
 
-with fits.open(fits_list[0]) as hdul:
-    # hdu_list = [hdu.copy() for hdu in hdul]
-    hdulcopy = fits.HDUList([hdu.copy() for hdu in hdul])
-
-# make generator for modyfying the fits file
-hdul_generator = (hdu for hdu in hdulcopy)
-
-
-
-for hdu, avg_data in zip(hdul_generator, frame_average):
-    hdu.data = avg_data
-    hdu.header.set('OBSTYPE', 'average zero')
-    # input('press Enter to continue')
-    if type(hdu) is fits.hdu.image.PrimaryHDU:
-        hdu.header.add_comment(str(datetime.date.today()))
-        hdu.header.add_comment('Modified OBSTYPE')
-        hdu.header.add_comment('Changed data to the median of 15 zero frames, of which this is the first')
-        hdu.header.add_comment('Source file names:')
-        for filename in filename_list:
-            hdu.header.add_comment(filename)
-
-hdulcopy.writeto(biasframe_path + '/testaverage' + extension)
+_write_average_data_to_file(average_data, 'testaverage.fits.fz', source_file_list=filename_list,
+                            file_path=biasframe_path, comment_string='Changed data to the median of 15 zero frames, of which this is the first')
 
 ds9 = pyds9.DS9(target='ds9')
 
 for image in frame_average:
     ds9.set('frame new')
     ds9.set_np2arr(image)
-'''
+
