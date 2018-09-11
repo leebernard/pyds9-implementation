@@ -15,6 +15,7 @@ import re
 # pattern = '(?=.*k4m)'
 # identifiers = [120]
 
+
 def get_filenames(path='.', extension=None, pattern=None, identifiers=None, include_path=False):
     """
     Retrieves a list containing the filenames from a target directory.
