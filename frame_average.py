@@ -22,6 +22,7 @@ import timing
 def _frame_mean(image_stack):
     # transpose the lists of data, then take the mean
     frame_mean = [np.mean(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+
     # transpose the lists of data, than take the std deviation and calculate error.
     # the error is calculated as std_dev/sqrt(n)
     pixel_error = [np.std(np.stack([hdu_data for hdu_data in data_tuple]) / np.sqrt(len(image_stack)), axis=0) for
@@ -47,42 +48,44 @@ def _frame_median(image_stack):
 
 def _sigma_clipped_frame_average(image_stack, **kwargs):
     # generate an array of zeros the size of the array
-    image_values = [np.zeros_like(image_data, dtype=float) for image_data in image_stack[0]]
+    image_value_sum_list = [np.zeros_like(image_data, dtype=float) for image_data in image_stack[0]]
 
-    variance_tracker = np.zeros(len(image_stack[0]))
-    pixel_counter = [np.zeros_like(image_data, dtype=int) for image_data in image_stack[0]]
+    variance_tracker_list = np.zeros(len(image_stack[0]))
+    pixel_counter_list = [np.zeros_like(image_data, dtype=int) for image_data in image_stack[0]]
 
     # generate an object for sigmaclipping. Hopefully, this is faster than function calling each time
     sigclip = SigmaClip(**kwargs)
     # iterate through the list of files, summing up all values of corresponding pixels
     for image_list in image_stack:
-        print('Variance:', variance_tracker)
-        for n, image_data in enumerate(image_list):
+        # # test code for checking calculations. Comment out or remove in final version
+        # print('Variance:', variance_tracker)
+        for image_data, image_value_sum, variance_tracker, pixel_counter \
+                in zip(image_list, image_value_sum_list, variance_tracker_list, pixel_counter_list):
             # extract the sigma clipped data
 
             clipped_data = sigclip(image_data)
             # add the sigma clipped data to the image array average, with clipped values set to zero
             # uses tracker to align entries
-            image_values[n] = image_values[n] + clipped_data.filled(0)
+            image_value_sum += clipped_data.filled(0)
 
             # keep track of the average variance
-            variance_tracker[n] += np.ma.var(clipped_data)/len(image_stack)
+            variance_tracker += np.ma.var(clipped_data)/len(image_stack)
 
             # keep tract of which pixels had a value added to them
-            pixel_counter[n] = pixel_counter[n] + ~clipped_data.mask
+            pixel_counter += ~clipped_data.mask
 
     # make a copy, to preserve how many pixels got counted zero times.
     # The pixels with zero counts are pixels that got sigma clipped out entirely
-    average_counter = pixel_counter.copy()
+    average_counter_list = pixel_counter_list.copy()
     # set zero values to 1, to prevent dividing zero by zero
-    for counter in average_counter:
+    for counter in average_counter_list:
         counter[counter == 0] = 1
 
     # compute average
-    average_image = [image/counter for image, counter in zip(image_values, average_counter)]
+    average_image = [image/counter for image, counter in zip(image_value_sum_list, average_counter_list)]
 
     # compute error
-    pixel_error = [np.sqrt(image_variance/counter) for image_variance, counter in zip(variance_tracker, average_counter)]
+    pixel_error = [np.sqrt(image_variance/counter) for image_variance, counter in zip(variance_tracker_list, average_counter_list)]
 
     return average_image, pixel_error, pixel_counter
 
@@ -94,7 +97,7 @@ def _copy_hdul(hdul):
     return fits.HDUList(hdu_list)
 
 
-def _write_average_data_to_file(data_list, writeto_filename, source_file_list=None, file_path='.', comment_string=None):
+def _write_average_data_to_file(data_list, writeto_filename, source_filename_list=None, file_path='.', comment_string=None):
     """
     This is a specific method for frame averaging.
 
@@ -125,7 +128,7 @@ def _write_average_data_to_file(data_list, writeto_filename, source_file_list=No
     # add a None to the start of the data list, for the primary HDU
     data_list.insert(0, None)
     # copy the first HDUList
-    with fits.open(file_path + '/' + source_file_list[0]) as hdul:
+    with fits.open(file_path + '/' + source_filename_list[0]) as hdul:
         hdulcopy = _copy_hdul(hdul)
 
     # make generator for modifying the fits file
@@ -141,23 +144,24 @@ def _write_average_data_to_file(data_list, writeto_filename, source_file_list=No
             if comment_string:
                 hdu.header.add_comment(comment_string)
             hdu.header.add_comment('Source file names:')
-            for filename in filename_list:
+            for filename in source_filename_list:
                 hdu.header.add_comment(filename)
 
     hdulcopy.writeto(file_path + '/' + writeto_filename)
 
 
-def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
+def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, sigma=3.0, iters=5, **kwargs):
     """
     This function calculates a sigma clipped average of images stored in fits
     files, by accessing them via a list of filenames.
 
     This function averages frame data that has been stored on disk in fits
-    files. It does so by taking a list of file names. If the files are not in
-    the current directory, the file path should be included in the file name.
-    This function presumes that each fits file contains a Header Data Unit
-    with extensions: the averages are computed on a per extension basis, and
-    returned as a list of data arrays.
+    files. It does so by taking a list of file names. If a file path is not
+    specified, defaults to the current working directory. The result can be
+    written to file by specifying a filename, and is saved to the same
+    directory as the source files. This function presumes that each fits file
+    contains a Header Data Unit with extensions: the averages are computed on a
+    per extension basis, and returned as a list of data arrays.
 
     Pixels are clipped by comparing the pixel to the standard
     deviation of the image the pixel is in. How many data points are used to
@@ -182,6 +186,12 @@ def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     ----------
     filename_list: list of strings
         Strings containing the file names of the frames to be averaged.
+    path: str, optional
+        A string that contains the file path that contains the filenames given.
+        Defaults to the current working directory.
+    writeto_filename: str or None, optional
+        String that contains a file name to write the result to as HDU with
+        extensions, in fits format. If None, does not write to file.
     sigma: float, optional
         The number of standard deviations to use for both the lower and upper
         clipping limit.
@@ -204,24 +214,41 @@ def sigma_clipped_frame_average(filename_list, sigma=3.0, iters=5, **kwargs):
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
-        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
+        hdul_list = [fits_stack.enter_context(fits.open(path + '/' + fits_name)) for fits_name in filename_list]
         image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+    # clean up the mess
 
-    return _sigma_clipped_frame_average(image_stack, sigma, iters, **kwargs)
+    if writeto_filename is not None:
+        frame_clipped_average_data, frame_clipped_average_error, frame_included_pixel_tracker = \
+            sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters,**kwargs)
+
+        comment_string = 'Changed data to the sigma clipped average of ' + str(len(filename_list)) + \
+                         ' zero frames, of which this is the first'
+
+        _write_average_data_to_file(frame_clipped_average_data, writeto_filename, source_filename_list=filename_list,
+                                    file_path=biasframe_path, comment_string=comment_string)
+
+        print('Amount of garbage:')
+        print(gc.collect())
+
+        return frame_clipped_average_data, frame_clipped_average_error, frame_included_pixel_tracker
+    else:
+        return _sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters,**kwargs)
 
 
-def frame_average(filename_list):
+def frame_average(filename_list, path='.', writeto_filename=None):
     """
     This function returns an average and error estimate of images stored in fits files, by
     accessing them via a list of filenames.
 
     This function averages frame data that has been stored on disk in fits
-    files. It does so by taking a list of file names. If the files are not in
-    the current directory, the file path should be included in the file name.
-    This function presumes that each fits file contains a Header Data Unit
-    with extensions. Data is taken from the extensions, stacked, and the
-    averages computed. This produces a list of data arrays corresponding to
-    the HDU data arrays.
+    files. It does so by taking a list of file names. If a file path is not
+    specified, defaults to the current working directory. The result can be
+    written to file by specifying a filename, and is saved to the same
+    directory as the source files. This function presumes that each fits file
+    contains a Header Data Unit with extensions. Data is taken from the
+    extensions, stacked, and the averages computed. This produces a list of
+    data arrays corresponding to the HDU data arrays.
 
     The error is calculated by taking the standard deviation of the data used
     to calculate the mean, on a pixel by pixel basis, and then dividing by the
@@ -232,6 +259,12 @@ def frame_average(filename_list):
     ----------
     filename_list: list of strings
         Strings containing the file names of the frames to be averaged.
+    path: str, optional
+        A string that contains the file path that contains the filenames given.
+        Defaults to the current working directory.
+    writeto_filename: str or None, optional
+        String that contains a file name to write the result to as HDU with
+        extensions, in fits format. If None, does not write to file.
 
     Returns
     -------
@@ -243,27 +276,33 @@ def frame_average(filename_list):
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
-        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
+        hdul_list = [fits_stack.enter_context(fits.open(path + '/' + fits_name)) for fits_name in filename_list]
         image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
 
-    return_value = _frame_mean(image_stack)
+    if writeto_filename is not None:
+        frame_average_data, frame_average_error = _frame_mean(image_stack)
+        comment_string = 'Changed data to the average of ' + str(len(filename_list)) + \
+                         ' zero frames, of which this is the first'
 
-    # clean up the mess
-    print('Amount of garbage:')
-    print(gc.collect())
-    return return_value
+        _write_average_data_to_file(frame_average_data, writeto_filename, source_filename_list=filename_list,
+                                    file_path=biasframe_path, comment_string=comment_string)
+        return frame_average_data, frame_average_error
+    else:
+        return _frame_mean(image_stack)
 
 
-def frame_median(filename_list, writeto_filename=None):
+def frame_median(filename_list, path='.', writeto_filename=None):
     """
     This function returns the median of several frames.
 
-    The frames are accessed from disk, by passing the file names. If the files
-    are not in the current directory, the file path should be included in the
-    file name. This function presumes that each fits file contains a Header
-    Data Unit with extensions. The data is stacked, and the median calculated
-    on a per pixel basis. The median is intended to be a fast way of getting
-    a bias frame, with some robustness against any outliers like cosmic rays.
+    The frames are accessed from disk, by passing the file names. If a file
+    path is not specified, defaults to current working directory. The result
+    can be written to a fits file by specifying a file name, and is saved to
+    the same directory as the source files. This function presumes that each
+    fits file contains a Header Data Unit with extensions. The data is stacked,
+    and the median calculated on a per pixel basis. The median is intended to
+    be a fast way of getting a bias frame, with some robustness against any
+    outliers like cosmic rays.
 
     The error is calculated by finding the standard error on the mean, and
     multiplying by 1.253. Note that this only gives accurate error estimates
@@ -274,6 +313,12 @@ def frame_median(filename_list, writeto_filename=None):
     ----------
     filename_list: list of strings
         Strings containing the file names of the frames to be averaged.
+    path: str, optional
+        A string that contains the file path that contains the filenames given.
+        Defaults to the current working directory.
+    writeto_filename: str or None, optional
+        String that contains a file name to write the result to as HDU with
+        extensions, in fits format. If None, does not write to file.
 
     Returns
     -------
@@ -281,10 +326,19 @@ def frame_median(filename_list, writeto_filename=None):
     """
 
     with ExitStack() as fits_stack:
-        hdul_list = [fits_stack.enter_context(fits.open(fits_name)) for fits_name in filename_list]
+        hdul_list = [fits_stack.enter_context(fits.open(path + '/' + fits_name)) for fits_name in filename_list]
         image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
 
-    return _frame_median(image_stack)
+    if writeto_filename is not None:
+        frame_median_data, frame_median_error = _frame_median(image_stack)
+        comment_string = 'Changed data to the median of' + str(len(filename_list)) + \
+                         'zero frames, of which this is the first'
+
+        _write_average_data_to_file(frame_median_data, writeto_filename, source_filename_list=filename_list,
+                                    file_path=biasframe_path, comment_string=comment_string)
+        return frame_median_data, frame_median_error
+    else:
+        return _frame_median(image_stack)
 
 
 '''
@@ -317,17 +371,17 @@ extension = '.fits.fz'
 pattern = '(?=.*k4m)'  # look-ahead regex pattern that checks for 'k4m'
 
 # retrieve the filenames
-filename_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=False)
+fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern, include_path=False)
 
-fits_list = [biasframe_path + '/' + filename for filename in filename_list]
-
-image_average, pixel_error = frame_median(fits_list)
-# image_average, pixel_error = frame_average(fits_list)
-# image_average, pixel_error, pixel_tracker = frame_average(fits_list, sigma_clip=True, sigma=5)
+# image_average, pixel_error = frame_median(fits_list, path=biasframe_path)
+# image_average, pixel_error = frame_average(fits_list, path=biasframe_path, writeto_filename='averagetest.fits.fz')
+image_average, pixel_error, pixel_tracker = sigma_clipped_frame_average(fits_list, path=biasframe_path,
+                                                                        # writeto_filename='clippedaveragetest.fits.fz',
+                                                                        sigma=5, iters=1)
 
 # print('Amount of garbage:')
 # print(gc.collect())
-
+'''
 ds9 = pyds9.DS9(target='ds9')
 for image in image_average:
     ds9.set('frame new')
@@ -368,4 +422,4 @@ ds9 = pyds9.DS9(target='ds9')
 for image in frame_average:
     ds9.set('frame new')
     ds9.set_np2arr(image)
-
+'''
