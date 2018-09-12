@@ -6,6 +6,48 @@ module is for easy extraction of segments of image data from DS9 into a python e
 detecting regions that have been selected by the user in DS9.  It also provides basic set of tools 
 for statistical analysis. These tools will be expanded on in the future.
 
+Some basic tools for statistical analysis have been added. There are now functions for finding 
+average, median, and sigma clipped average frames. The frame average is found by stacking the data
+frames, with each image forming a layer of the stack. If there are extensions, each header data unit 
+gets it's own stack. It is presumed that header data units correspond to amplifiers, allowing for 
+convenient stacking. The average is taken along the stack axis for each pixel. 
+
+The median is found in a similar fashion to the average, and is intended to do the same thing, but
+with some robustness against outlying pixel values, while having a shorter runtime than sigma 
+clipping. 
+
+The sigma clipped average is the most robust, and operates a little differently. It leverages 
+Astropy's SigmaClip to remove any pixels with outlying values. This works by find the standard 
+deviation (sigma) and median of the data on a image layer. Any pixels beyond a multiple of the sigma 
+(say 5 sigma) on that particular layer are masked. This masking procedure can be iterated through a 
+specified number of times, and the sigma to clip to can also be specified. Any pixels that are not 
+masked are included in the average along the stack axis. See Astropy.stats Sigma_Clip for more 
+advanced options. 
+
+Because clipping removes pixels from the stack axis, it is possible for pixel average results to 
+have been produced from fewer data points than the total number of frames being averaged. This has 
+a couple of consequences. One, as pixels are clipped out, the error for that pixel increases (this 
+is also why clipping is done on the image layer, instead of along the stack axis). Another is that 
+some pixels can be clipped out entirely. If a pixel is clipped out entirely, it's data value is 
+returned as zero. This can occur for hot pixels, and along the data edge. Both of those cases are 
+handled by keeping track of how many data points are included for a particular pixel, in a data 
+structure the same shape as the average result. Each entry in an array of this pixel count tracker
+corresponds to a pixel in the image data, and contains a value equivalent to:
+
+    (# of frames being averaged) - (# of times this particular pixel has been clipped) 
+    = (number of data points used to compute average)
+
+A robust way of subtracting frames has also been added, and is complex enough to need a little 
+explanation. It is intended for subtracting bias and dark frames from image data, and displaying
+the result in DS9. It can do this for frames on file, frames open in DS9, and a combination thereof.
+This adds a wrinkle: in the case where header data unit (HDU) extensions are being used, DS9 only 
+passes one extension at a time, the one currently selected by the user. If one frame is open in DS9, 
+and the other on disk, the subtraction function will automatically acquire the appropriate HDU 
+extension. If both frames being subtracted are open in DS9, they are simply subtracted. If both 
+frames are on disk, the subtraction routine will iterate through all HDU extensions. 
+
+In the future, a way of writing this difference to file should be added
+
 See http://hea-www.harvard.edu/RD/pyds9/ for more information on pyds9, including a link to source 
 files on github.
 
