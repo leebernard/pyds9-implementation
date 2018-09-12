@@ -381,7 +381,7 @@ image_average, pixel_error, pixel_tracker = sigma_clipped_frame_average(fits_lis
 
 # print('Amount of garbage:')
 # print(gc.collect())
-'''
+# '''
 ds9 = pyds9.DS9(target='ds9')
 for image in image_average:
     ds9.set('frame new')
@@ -422,4 +422,4 @@ ds9 = pyds9.DS9(target='ds9')
 for image in frame_average:
     ds9.set('frame new')
     ds9.set_np2arr(image)
-'''
+# '''

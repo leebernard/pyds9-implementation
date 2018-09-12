@@ -10,16 +10,32 @@ wrapper.
 
 Functions
 ---------
-get_ds9_regions: Retrieves a selected region from DS9, and returns it as a Region instance
-make_source_mask: Generates and returns a source mask from image data.
-image_stats: Returns stats on image data.
-bias_from_ds9: Returns the data in the bias section from an image loaded in DS9.
-sky_subtract: Returns the sky background subtracted image data
-bias_subtract: Returns the bias subtracted data
-display_data: A wrapper for displaying image data using MatPlotLib
-
-
-
+get_ds9_regions:
+    Retrieves a selected region from DS9, and returns it as a Region instance
+make_source_mask:
+    Generates and returns a source mask from image data.
+image_stats:
+    Returns stats on image data.
+bias_from_ds9:
+    Returns the data in the bias section from an image loaded in DS9.
+sky_subtract:
+    Returns the sky background subtracted image data
+bias_subtract:
+    Returns the bias subtracted data
+display_data:
+    A wrapper for displaying image data using MatPlotLib
+get_filenames:
+    A function that retrieves file names from a particular directory.
+frame_subtract:
+    Subtracts image data frame by frame, either from file or from DS9
+frame_average:
+    Takes the average of a set of image data, from file.
+frame_median:
+    Takes the per-pixel median of a set of image data, from file. Intended
+    to be a more robust version of frame_average.
+sigma_clipped_frame_average:
+    Takes the average of a set of image data from file, with outliers
+    clipped.
 """
 
 __version__ = '0.1'
@@ -1025,7 +1041,11 @@ def frame_median(filename_list, path='.', writeto_filename=None):
 
     Returns
     -------
-        list of ndarrays: frame data on a per amplifier basis, after taking the median
+    frame_median: list
+        A list of ndarrays containing image data after taking the median.
+    pixel_error: list
+        A list of ndarrays corresponding to frame_median, that contains the
+        per-pixel error on the average.
     """
 
     with ExitStack() as fits_stack:
@@ -1044,7 +1064,8 @@ def frame_median(filename_list, path='.', writeto_filename=None):
         return _frame_median(image_stack)
 
 
-def frame_subtract(minuend, subtrahend, display=True, writeto_filename=None):
+
+def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
      data.
@@ -1063,11 +1084,11 @@ def frame_subtract(minuend, subtrahend, display=True, writeto_filename=None):
         The source of the data to be subtracted from.
     subtrahend: HDUList, filename, or DS9 instance
         The source of the data to be subtracted.
-    display: bool, optional
+    display_in_ds9: bool, optional
         If True, the result will be displayed in a Display instance of DS9,
         in a new frame. If the Display instance of DS9 is not already
         running, one will opened.
-    writeto_filename: str
+    write_to: str
         (To be implemented) Name of file to write result to. Will create a
         new file if one does not already exist.
 
@@ -1075,6 +1096,28 @@ def frame_subtract(minuend, subtrahend, display=True, writeto_filename=None):
     -------
     difference:
         array containing the data after subtraction
+
+    Examples
+    --------
+    >>> filename1 = '/home/lee/Documents/k4m_160531_050920_ori.fits.fz'
+    >>> filename2 = '/home/lee/Documents/k4m_161228_132947_dri.fits.fz'
+    >>> with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hdul:
+    ...     data_list = frame_subtract(minuend_hdul, subtrahend_hdul, display_in_ds9=False)
+    >>> data_list[0]
+    array([[4.700e+01, 5.700e+01, 1.049e+04, ..., 3.200e+01, 4.300e+01,
+            3.800e+01],
+           [3.400e+01, 2.800e+01, 3.225e+03, ..., 1.800e+01, 2.400e+01,
+            3.900e+01],
+           [3.300e+01, 1.800e+01, 2.774e+03, ..., 2.400e+01, 4.700e+01,
+            3.900e+01],
+           ...,
+           [3.800e+01, 1.600e+01, 2.500e+01, ..., 2.100e+01, 3.300e+01,
+            2.400e+01],
+           [1.000e+01, 2.000e+01, 1.800e+01, ..., 1.500e+01, 1.300e+01,
+            1.900e+01],
+           [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,
+            2.200e+01]])
+
     """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
@@ -1126,7 +1169,7 @@ def frame_subtract(minuend, subtrahend, display=True, writeto_filename=None):
     # calculate difference
     difference = _frame_subtract(minuend_hdul, subtrahend_hdul)
 
-    if display:
+    if display_in_ds9:
         display = pyds9.DS9(target='Display', start='-title Display')
         for array in difference:
             display.set('frame new')
@@ -1173,6 +1216,27 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
     --------
     os.listdir: returns the names of all entries in a directory
     re: module that supports regular expression matching operations for python
+
+    Examples
+    --------
+
+    Retrieve a list of file names using a file extension, and a Regex pattern.
+
+    >>> biasframe_path = '/home/lee/Documents/bias_frames'
+    >>> extension = '.fits.fz'
+    >>> pattern = '(?=.*k4m)'  # look-ahead regex pattern that checks for 'k4m'
+    >>> fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern)
+    >>> print(fits_list)
+    ['k4m_180211_231642_zri.fits.fz', 'k4m_180211_225927_zri.fits.fz', 'k4m_180211_231335_zri.fits.fz', 'k4m_180211_230119_zri.fits.fz', 'k4m_180211_231949_zri.fits.fz', 'k4m_180211_231834_zri.fits.fz', 'k4m_180211_231449_zri.fits.fz', 'k4m_180211_231604_zri.fits.fz', 'k4m_180211_231527_zri.fits.fz', 'k4m_180211_231911_zri.fits.fz', 'k4m_180211_230004_zri.fits.fz', 'k4m_180211_231719_zri.fits.fz', 'k4m_180211_231412_zri.fits.fz', 'k4m_180211_230042_zri.fits.fz', 'k4m_180211_231756_zri.fits.fz']
+
+    Retrieve a list of file names using a sequence of numbers
+
+    >>> identifiers = np.arange(190800, 190900)
+    >>> fits_list = get_filenames(biasframe_path, identifiers=identifiers)
+    >>> fits_list
+    ['c4d_170331_190830_zri.fits.fz', 'c4d_170331_190853_zri.fits.fz']
+
+
     """
     # retrieve all filenames from the directory
     filename_list = os.listdir(path)

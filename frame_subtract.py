@@ -34,7 +34,7 @@ def _frame_subtract(minuend_hdul, subtrahend_hdul):
             if minuend.data is not None and subtrahend.data is not None]
 
 
-def frame_subtract(minuend, subtrahend, display=True, write_to=None):
+def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
      data.
@@ -53,7 +53,7 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
         The source of the data to be subtracted from.
     subtrahend: HDUList, filename, or DS9 instance
         The source of the data to be subtracted.
-    display: bool, optional
+    display_in_ds9: bool, optional
         If True, the result will be displayed in a Display instance of DS9,
         in a new frame. If the Display instance of DS9 is not already
         running, one will opened.
@@ -65,6 +65,28 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     -------
     difference:
         array containing the data after subtraction
+
+    Examples
+    --------
+    >>> filename1 = '/home/lee/Documents/k4m_160531_050920_ori.fits.fz'
+    >>> filename2 = '/home/lee/Documents/k4m_161228_132947_dri.fits.fz'
+    >>> with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hdul:
+    ...     data_list = frame_subtract(minuend_hdul, subtrahend_hdul, display_in_ds9=False)
+    >>> data_list[0]
+    array([[4.700e+01, 5.700e+01, 1.049e+04, ..., 3.200e+01, 4.300e+01,
+            3.800e+01],
+           [3.400e+01, 2.800e+01, 3.225e+03, ..., 1.800e+01, 2.400e+01,
+            3.900e+01],
+           [3.300e+01, 1.800e+01, 2.774e+03, ..., 2.400e+01, 4.700e+01,
+            3.900e+01],
+           ...,
+           [3.800e+01, 1.600e+01, 2.500e+01, ..., 2.100e+01, 3.300e+01,
+            2.400e+01],
+           [1.000e+01, 2.000e+01, 1.800e+01, ..., 1.500e+01, 1.300e+01,
+            1.900e+01],
+           [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,
+            2.200e+01]])
+
     """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
@@ -116,7 +138,7 @@ def frame_subtract(minuend, subtrahend, display=True, write_to=None):
     # calculate difference
     difference = _frame_subtract(minuend_hdul, subtrahend_hdul)
 
-    if display:
+    if display_in_ds9:
         display = pyds9.DS9(target='Display', start='-title Display')
         for array in difference:
             display.set('frame new')
@@ -136,9 +158,6 @@ display = pyds9.DS9(target='display', start='-title display')
 ds9 = pyds9.DS9()
 ds9.set('file ' + filename1)
 with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hdul:
-    # minuend_hdul.info()
-    # subtrahend_hdul.info()
-
     data_list = frame_subtract(minuend_hdul, subtrahend_hdul)
 
     difference = frame_subtract(ds9, filename2)
