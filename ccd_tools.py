@@ -38,7 +38,7 @@ sigma_clipped_frame_average:
     clipped.
 """
 
-__version__ = '0.1'
+__version__ = '0.2'
 __author__ = 'Lee Bernard'
 # import needed packages
 
