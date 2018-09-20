@@ -1,5 +1,5 @@
 """
-ccd_tools is a wrapper and extension for pyds9, with basic stats function
+''ccd_tools'' is a wrapper and extension for ''pyds9'', with basic stats function
 for convenience. This is very much still in development, so use with
 caution.
 
