@@ -401,7 +401,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     ------
     IndexError
         If a region has not been selected in DS9, or the region selected is not
-         a box.
+        a box.
     Examples
     --------
     >>> from ccd_tools import *
@@ -632,8 +632,8 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwarg
     mask_sources: bool, optional
         If True, a source mask will be automatically generated using photutils.
         This source mask will be combined with any mask passed through the mask
-         parameter. To set options for mask generation, generate a mask
-         separately, then pass it through the mask parameter.
+        parameter. To set options for mask generation, generate a mask
+        separately, then pass it through the mask parameter.
     sigma_clip: bool, optional
         If True, sigma clipped statistics will be returned using the function
         sigma_clipped_stats from astropy.stats
@@ -747,12 +747,12 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
         requires an image data array
     mask: ndarray (bool), optional
         Boolean array the same size as im_data. Entries in im_data
-         corresponding to True values in mask will be ignored in
-         calculations.
+        corresponding to True values in mask will be ignored in
+        calculations.
     mask_sources: bool, optional
         If True, a source mask is automatically generated using photutils. This
-         option allows this feature to be disabled, in case photutils is not
-         available, or not working correctly.
+        option allows this feature to be disabled, in case photutils is not
+        available, or not working correctly.
     kwargs: dict, optional
         Keyword arguments to be passed to image_stats
 
@@ -1191,7 +1191,7 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
         list the current directory.
     extension: string, optional
         The extension of the filenames to be retrieved. This works by comparing
-         the end of the entry names to the string specified, so it need not be
+        the end of the entry names to the string specified, so it need not be
         an extension, merely the end of entry-name you wish to retrieve.
     pattern: string, optional
         A pattern by which to filter what filenames and entries are returned. This
