@@ -402,6 +402,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     IndexError
         If a region has not been selected in DS9, or the region selected is not
         a box.
+
     Examples
     --------
     >>> from ccd_tools import *
