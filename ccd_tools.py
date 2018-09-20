@@ -339,9 +339,6 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
     file_path
     comment_string
 
-    Returns
-    -------
-
     """
 
     # add a None to the start of the data list, for the primary HDU
@@ -445,7 +442,6 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
            2198.10897334, 2232.10897334],
            [2229.10897334, 2202.10897334, 2221.10897334, ..., 2168.10897334,
            2202.10897334, 2161.10897334]])
-
 
     """
 
@@ -607,6 +603,7 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     bool_mask: ndarray, bool
         A boolean mask that corresponds to the data input. Pixels that are part
         of a source are set to True.
+
     """
     from photutils import make_source_mask
 
@@ -645,6 +642,7 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwarg
     -------
     mean, median, stddev: float
         the mean, median, and standard deviation of the background
+
     """
     # if no mask is specified, mask any sources
     if mask_sources:
@@ -881,25 +879,6 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
     contains a Header Data Unit with extensions: the averages are computed on a
     per extension basis, and returned as a list of data arrays.
 
-    Pixels are clipped by comparing the pixel to the standard
-    deviation of the image the pixel is in. How many data points are used to
-    calculate the average is kept track of on a pixel basis, and is returned
-    as a list of integer arrays that matches the list of image data arrays. If
-    a particular pixel is clipped out in all images, the average of that pixel
-    will be returned as zero. It's corresponding location in the data points
-    tracker will also be zero.
-
-    Error is calculated by taking the average variance of the clipped image
-    data, and dividing the result by the pixel tracker. This produces an array
-    of the same shape as the original image, with entries containing variances
-    on a pixel by pixel basis that have been reduced by the number of pixels
-    used to calculate the average for that pixel. The elementwise square root
-    of this array is returned as the error.
-
-    Sigma clipping significantly increases the runtime. If you wish to
-    eliminate defects such as cosmic rays, but do not want to wait for the
-    sigma clipping to finish, consider using frame_median.
-
      Parameters
     ----------
     filename_list: list of strings
@@ -929,6 +908,29 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
     pixel_tracker: list
         A list of ndarrays containing how many data point were used to produce
         an average, on a pixel by pixel basis.
+
+    Notes
+    -----
+
+    Pixels are clipped by comparing the pixel to the standarddeviation of the
+    image the pixel is in. How many data points are used to calculate the
+    average is kept track of on a pixel basis, and is returned as a list of
+    integer arrays that matches the list of image data arrays. If a particular
+    pixel is clipped out in all images, the average of that pixel will be
+    returned as zero. It's corresponding location in the data points tracker
+    will also be zero.
+
+    Error is calculated by taking the average variance of the clipped image
+    data, and dividing the result by the pixel tracker. This produces an array
+    of the same shape as the original image, with entries containing variances
+    on a pixel by pixel basis that have been reduced by the number of pixels
+    used to calculate the average for that pixel. The elementwise square root
+    of this array is returned as the error.
+
+    Sigma clipping significantly increases the runtime. If you wish to
+    eliminate defects such as cosmic rays, but do not want to wait for the
+    sigma clipping to finish, consider using frame_median.
+
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
@@ -964,14 +966,7 @@ def frame_average(filename_list, path='.', writeto_filename=None):
     specified, defaults to the current working directory. The result can be
     written to file by specifying a filename, and is saved to the same
     directory as the source files. This function presumes that each fits file
-    contains a Header Data Unit with extensions. Data is taken from the
-    extensions, stacked, and the averages computed. This produces a list of
-    data arrays corresponding to the HDU data arrays.
-
-    The error is calculated by taking the standard deviation of the data used
-    to calculate the mean, on a pixel by pixel basis, and then dividing by the
-    square root of the number of frames. This produces a list of arrays the
-    same shape as the frame data.
+    contains a Header Data Unit with extensions.
 
     Parameters
     ----------
@@ -991,6 +986,18 @@ def frame_average(filename_list, path='.', writeto_filename=None):
     pixel_error: list
         A list of ndarrays correspoding to frame_mean, that contains the
         per-pixel error on the average.
+
+    Notes
+    -----
+    Data is taken from the extensions, stacked, and the averages computed.
+    This produces a list of data arrays, with each entry in the list
+    corresponding to an HDU data array.
+
+    The error is calculated by taking the standard deviation of the data used
+    to calculate the mean, on a pixel by pixel basis, and then dividing by the
+    square root of the number of frames. This produces a list of arrays the
+    same shape as the list of average frames.
+
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
@@ -1234,7 +1241,6 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
     >>> fits_list = get_filenames(biasframe_path, identifiers=identifiers)
     >>> fits_list
     ['c4d_170331_190830_zri.fits.fz', 'c4d_170331_190853_zri.fits.fz']
-
 
     """
     # retrieve all filenames from the directory
