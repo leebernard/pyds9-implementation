@@ -38,7 +38,7 @@ Functions
     clipped.
 """
 
-__version__ = '0.2.1'
+__version__ = '0.2'
 __author__ = 'Lee Bernard'
 # import needed packages
 
