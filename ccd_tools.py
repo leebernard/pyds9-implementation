@@ -5,7 +5,7 @@ caution.
 
 Classes
 -------
-The Region class is for holding segments of image data in a convenient
+The 'Region' class is for holding segments of image data in a convenient
 wrapper.
 
 Functions
