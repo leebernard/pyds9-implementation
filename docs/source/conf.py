@@ -16,7 +16,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import sys
-sys.path.insert(0, '/home/lee/PycharmProjects/pyds9-implementation')
+sys.path.insert(0, '/home/lee/PycharmProjects/pyds9-implementation') 
 
 # -- Project information -----------------------------------------------------
 

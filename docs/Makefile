@@ -6,7 +6,7 @@ SPHINXOPTS    =
 SPHINXBUILD   = python -m sphinx
 SPHINXPROJ    = ccd_tools
 SOURCEDIR     = source
-BUILDDIR      = build
+BUILDDIR      = ../../pyds9-implementation-docs
 
 # Put it first so that "make" without argument is like "make help".
 help:
