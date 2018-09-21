@@ -15,7 +15,8 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+import sys
+sys.path.insert(0, '/home/lee/PycharmProjects/pyds9-implementation')
 
 # -- Project information -----------------------------------------------------
 
@@ -24,7 +25,7 @@ copyright = '2018, Lee Bernard'
 author = 'Lee Bernard'
 
 # The short X.Y version
-version = ''
+version = '0.2'
 # The full version, including alpha/beta/rc tags
 release = '0.2'
 
@@ -44,6 +45,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+	'numpydoc',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

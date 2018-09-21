@@ -1,0 +1,1367 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ccd_tools &#8212; ccd_tools 0.2 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for ccd_tools</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">ccd_tools is a wrapper and extension for pyds9, with basic stats function</span>
+<span class="sd">for convenience. This is very much still in development, so use with</span>
+<span class="sd">caution.</span>
+
+<span class="sd">Classes</span>
+<span class="sd">-------</span>
+<span class="sd">The &#39;Region&#39; class is for holding segments of image data in a convenient</span>
+<span class="sd">wrapper.</span>
+
+<span class="sd">Functions</span>
+<span class="sd">---------</span>
+<span class="sd">get_ds9_regions:</span>
+<span class="sd">    Retrieves a selected region from DS9, and returns it as a Region instance</span>
+<span class="sd">make_source_mask:</span>
+<span class="sd">    Generates and returns a source mask from image data.</span>
+<span class="sd">image_stats:</span>
+<span class="sd">    Returns stats on image data.</span>
+<span class="sd">bias_from_ds9:</span>
+<span class="sd">    Returns the data in the bias section from an image loaded in DS9.</span>
+<span class="sd">sky_subtract:</span>
+<span class="sd">    Returns the sky background subtracted image data</span>
+<span class="sd">bias_subtract:</span>
+<span class="sd">    Returns the bias subtracted data</span>
+<span class="sd">display_data:</span>
+<span class="sd">    A wrapper for displaying image data using MatPlotLib</span>
+<span class="sd">get_filenames:</span>
+<span class="sd">    A function that retrieves file names from a particular directory.</span>
+<span class="sd">frame_subtract:</span>
+<span class="sd">    Subtracts image data frame by frame, either from file or from DS9</span>
+<span class="sd">frame_average:</span>
+<span class="sd">    Takes the average of a set of image data, from file.</span>
+<span class="sd">frame_median:</span>
+<span class="sd">    Takes the per-pixel median of a set of image data, from file. Intended</span>
+<span class="sd">    to be a more robust version of frame_average.</span>
+<span class="sd">sigma_clipped_frame_average:</span>
+<span class="sd">    Takes the average of a set of image data from file, with outliers</span>
+<span class="sd">    clipped.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.2&#39;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Lee Bernard&#39;</span>
+<span class="c1"># import needed packages</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">ExitStack</span>
+<span class="kn">from</span> <span class="nn">astropy.io</span> <span class="k">import</span> <span class="n">fits</span>
+<span class="kn">from</span> <span class="nn">astropy.stats</span> <span class="k">import</span> <span class="n">sigma_clipped_stats</span>
+<span class="c1"># from astropy.stats import sigma_clip</span>
+<span class="kn">from</span> <span class="nn">astropy.stats</span> <span class="k">import</span> <span class="n">SigmaClip</span>
+<span class="kn">from</span> <span class="nn">astropy.visualization</span> <span class="k">import</span> <span class="n">SqrtStretch</span>
+<span class="kn">from</span> <span class="nn">astropy.visualization.mpl_normalize</span> <span class="k">import</span> <span class="n">ImageNormalize</span>
+
+<span class="kn">import</span> <span class="nn">pyds9</span>
+
+
+<div class="viewcode-block" id="Region"><a class="viewcode-back" href="../index.html#ccd_tools.Region">[docs]</a><span class="k">class</span> <span class="nc">Region</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class is for convenient packaging of the region data.</span>
+
+<span class="sd">    For example, (self.xmin, self.ymin) gives the array location of lower left corner of region in the image data.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    region_def: string</span>
+<span class="sd">        String definition of the region. This can be the region as defined in DS9, or any string definition the user</span>
+<span class="sd">        decides.</span>
+<span class="sd">    source_file: string</span>
+<span class="sd">        String containing the name and path of the file that the region originated from.</span>
+<span class="sd">    x_coord: float</span>
+<span class="sd">        x coordinate of the region center</span>
+<span class="sd">    y_coord: float</span>
+<span class="sd">        y coordinate of the region center</span>
+<span class="sd">    width: float</span>
+<span class="sd">        width of the region</span>
+<span class="sd">    height: float</span>
+<span class="sd">        height of the region</span>
+<span class="sd">    xmin: int</span>
+<span class="sd">        x coordinate of the lower left corner</span>
+<span class="sd">    xmax: int</span>
+<span class="sd">        x coordinate of the upper right corner</span>
+<span class="sd">    ymin: int</span>
+<span class="sd">        y coordinate of the lower left corner</span>
+<span class="sd">    ymax: int</span>
+<span class="sd">        y coordinate of the upper right corner</span>
+<span class="sd">    data: ndarray</span>
+<span class="sd">        Image data array of the defined region.</span>
+<span class="sd">    bias_sub: ndarray</span>
+<span class="sd">        Image data array of the defined region, after bias subtraction</span>
+<span class="sd">    sky_sub: ndarray</span>
+<span class="sd">        Image data array of the defined region, after background subtraction.</span>
+<span class="sd">        This data may also be bias subtracted.</span>
+<span class="sd">    bias_stats: tuple</span>
+<span class="sd">        Three numbers representing, in order: the bias region mean, median, and standard deviation</span>
+
+<span class="sd">    Methods</span>
+<span class="sd">    -------</span>
+<span class="sd">    sky_subtract: adds sky background subtracted data to the sky_sub attribute.</span>
+<span class="sd">    stats: displays statistics on the data attributes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># set data members so that if any are not being used they return none</span>
+
+        <span class="c1"># important meta data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">region_def</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">x_coord</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y_coord</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">xmin</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xmax</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ymin</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ymax</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias_sub</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sky_sub</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias_stats</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sky_stats</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Region.stats"><a class="viewcode-back" href="../index.html#ccd_tools.Region.stats">[docs]</a>    <span class="k">def</span> <span class="nf">stats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sigma_clip</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Displays statistics of the region data, and bias subtracted and sky</span>
+<span class="sd">        subtracted data if available.</span>
+
+<span class="sd">        Has options for masking and sigma clipping.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sigma_clip: bool, optional</span>
+<span class="sd">            If True, returns sigma clipped statistics.</span>
+<span class="sd">        mask: np.ndarray (bool), optional</span>
+<span class="sd">            Boolean array of the same shape as self.data. Entries that are set to</span>
+<span class="sd">            True are ignored in statistical calculations.</span>
+<span class="sd">        mask_sources:</span>
+<span class="sd">            Flag for masking sources or not</span>
+<span class="sd">        kwargs: dict</span>
+<span class="sd">            Keyword arguments to be passed to image stats</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        image_stats: calculates statistics on image data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-----------------------&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Region Data Statistics:&#39;</span><span class="p">)</span>
+        <span class="n">image_stats</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">sigma_clip</span><span class="o">=</span><span class="n">sigma_clip</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="n">mask_sources</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># if there are stats on the bias and sky background, print those also</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_sub</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;---------------------&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Region Bias Subtracted Statistics:&#39;</span><span class="p">)</span>
+            <span class="n">image_stats</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_sub</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">sigma_clip</span><span class="o">=</span><span class="n">sigma_clip</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="n">mask_sources</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sky_sub</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;---------------------&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Sky Subtracted Data Statistics:&#39;</span><span class="p">)</span>
+            <span class="n">image_stats</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sky_sub</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">sigma_clip</span><span class="o">=</span><span class="n">sigma_clip</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="n">mask_sources</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+        <span class="c1"># return mean, median, std</span>
+
+<div class="viewcode-block" id="Region.sky_subtract"><a class="viewcode-back" href="../index.html#ccd_tools.Region.sky_subtract">[docs]</a>    <span class="k">def</span> <span class="nf">sky_subtract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method calculates the background subtracted data, and stores it in</span>
+<span class="sd">        the sky_sub attribute.</span>
+
+<span class="sd">        This is a wrapper for sky_subtract. If bias subtracted data is available,</span>
+<span class="sd">        it uses that. Otherwise, it uses data in the data attribute. If neither</span>
+<span class="sd">        are available, raises an exception.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        mask: numpy.ndarray (bool), optional</span>
+<span class="sd">            A boolean mask with the same shape as data, where a True value</span>
+<span class="sd">            indicates the corresponding element of data is masked. Masked pixels</span>
+<span class="sd">            are excluded when computing the statistics.</span>
+<span class="sd">        kwargs: dict, optional</span>
+<span class="sd">            Optional keywords for sky_subtract</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If both the data attribute and the bias_sub attribute are set to none.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        sky_subtract: returns background subtracted data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># first look for bias subtracted data</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_sub</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sky_sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sky_stats</span> <span class="o">=</span> <span class="n">sky_subtract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias_sub</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># if bias subtracted data is not found, used raw data</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Bias subtracted data not found. Using raw data.&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sky_sub</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sky_stats</span> <span class="o">=</span> <span class="n">sky_subtract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># if no data is available, throw an exception</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Data attributes are unassigned&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Invalid value stored in data attributes.&#39;</span><span class="p">)</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_find_hdu_extension</span><span class="p">(</span><span class="n">extname</span><span class="p">,</span> <span class="n">hdulist</span><span class="p">):</span>
+    <span class="c1"># finds the first match in the hdulist for the extension name</span>
+    <span class="c1"># This is needed for frame_subtracting using ds9, but should work for any format of hdu list</span>
+    <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdulist</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">extname</span><span class="p">,</span> <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;extname&#39;</span><span class="p">],</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+                <span class="n">hdu_match</span> <span class="o">=</span> <span class="n">hdu</span>
+                <span class="c1"># once the extension is found, break</span>
+                <span class="k">break</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># catch the exception when no extension name exists, and keep moving</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No extension name.&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># corresponding extension not found, raise error</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;A matching extension was not found.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">hdu_match</span>
+
+
+<span class="k">def</span> <span class="nf">_frame_subtract</span><span class="p">(</span><span class="n">minuend_hdul</span><span class="p">,</span> <span class="n">subtrahend_hdul</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">minuend</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float64&#39;</span><span class="p">,</span> <span class="n">casting</span><span class="o">=</span><span class="s1">&#39;safe&#39;</span><span class="p">)</span> <span class="o">-</span> <span class="n">subtrahend</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float64&#39;</span><span class="p">,</span> <span class="n">casting</span><span class="o">=</span><span class="s1">&#39;safe&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">minuend</span><span class="p">,</span> <span class="n">subtrahend</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">minuend_hdul</span><span class="p">,</span> <span class="n">subtrahend_hdul</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">minuend</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">subtrahend</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_frame_mean</span><span class="p">(</span><span class="n">image_stack</span><span class="p">):</span>
+    <span class="c1"># transpose the lists of data, then take the mean</span>
+    <span class="n">frame_mean</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">hdu_data</span> <span class="k">for</span> <span class="n">hdu_data</span> <span class="ow">in</span> <span class="n">data_tuple</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">data_tuple</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">image_stack</span><span class="p">)]</span>
+
+    <span class="c1"># transpose the lists of data, than take the std deviation and calculate error.</span>
+    <span class="c1"># the error is calculated as std_dev/sqrt(n)</span>
+    <span class="n">pixel_error</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">hdu_data</span> <span class="k">for</span> <span class="n">hdu_data</span> <span class="ow">in</span> <span class="n">data_tuple</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span>
+                   <span class="n">data_tuple</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">image_stack</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="n">frame_mean</span><span class="p">,</span> <span class="n">pixel_error</span>
+
+
+<span class="k">def</span> <span class="nf">_frame_median</span><span class="p">(</span><span class="n">image_stack</span><span class="p">):</span>
+
+    <span class="c1"># transpose the lists, then stack and take the median</span>
+    <span class="n">image_median_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">hdu_data</span> <span class="k">for</span> <span class="n">hdu_data</span> <span class="ow">in</span> <span class="n">data_tuple</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">data_tuple</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">image_stack</span><span class="p">)]</span>
+
+    <span class="c1"># transpose the lists of data, than take the std deviation.</span>
+    <span class="c1"># the error is calculated as 1.253*std_dev/sqrt(n)</span>
+    <span class="c1"># Note that this is correct only for normal distributions, which is almost certainly not the case</span>
+    <span class="c1"># Therefore these error values are suspect</span>
+    <span class="n">pixel_error_list</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.253</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">hdu_data</span> <span class="k">for</span> <span class="n">hdu_data</span> <span class="ow">in</span> <span class="n">data_tuple</span><span class="p">])</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">data_tuple</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">image_stack</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="n">image_median_list</span><span class="p">,</span> <span class="n">pixel_error_list</span>
+
+
+<span class="k">def</span> <span class="nf">_sigma_clipped_frame_average</span><span class="p">(</span><span class="n">image_stack</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="c1"># generate an array of zeros the size of the array</span>
+    <span class="n">image_value_sum_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> <span class="k">for</span> <span class="n">image_data</span> <span class="ow">in</span> <span class="n">image_stack</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
+    <span class="n">variance_tracker_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">image_stack</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">pixel_counter_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span> <span class="k">for</span> <span class="n">image_data</span> <span class="ow">in</span> <span class="n">image_stack</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
+    <span class="c1"># generate an object for sigmaclipping. Hopefully, this is faster than function calling each time</span>
+    <span class="n">sigclip</span> <span class="o">=</span> <span class="n">SigmaClip</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="c1"># iterate through the list of files, summing up all values of corresponding pixels</span>
+    <span class="k">for</span> <span class="n">image_list</span> <span class="ow">in</span> <span class="n">image_stack</span><span class="p">:</span>
+        <span class="c1"># # test code for checking calculations. Comment out or remove in final version</span>
+        <span class="c1"># print(&#39;Variance:&#39;, variance_tracker)</span>
+        <span class="k">for</span> <span class="n">image_data</span><span class="p">,</span> <span class="n">image_value_sum</span><span class="p">,</span> <span class="n">variance_tracker</span><span class="p">,</span> <span class="n">pixel_counter</span> \
+                <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image_list</span><span class="p">,</span> <span class="n">image_value_sum_list</span><span class="p">,</span> <span class="n">variance_tracker_list</span><span class="p">,</span> <span class="n">pixel_counter_list</span><span class="p">):</span>
+            <span class="c1"># extract the sigma clipped data</span>
+
+            <span class="n">clipped_data</span> <span class="o">=</span> <span class="n">sigclip</span><span class="p">(</span><span class="n">image_data</span><span class="p">)</span>
+            <span class="c1"># add the sigma clipped data to the image array average, with clipped values set to zero</span>
+            <span class="c1"># uses tracker to align entries</span>
+            <span class="n">image_value_sum</span> <span class="o">+=</span> <span class="n">clipped_data</span><span class="o">.</span><span class="n">filled</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># keep track of the average variance</span>
+            <span class="n">variance_tracker</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">clipped_data</span><span class="p">)</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)</span>
+
+            <span class="c1"># keep tract of which pixels had a value added to them</span>
+            <span class="n">pixel_counter</span> <span class="o">+=</span> <span class="o">~</span><span class="n">clipped_data</span><span class="o">.</span><span class="n">mask</span>
+
+    <span class="c1"># make a copy, to preserve how many pixels got counted zero times.</span>
+    <span class="c1"># The pixels with zero counts are pixels that got sigma clipped out entirely</span>
+    <span class="n">average_counter_list</span> <span class="o">=</span> <span class="n">pixel_counter_list</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="c1"># set zero values to 1, to prevent dividing zero by zero</span>
+    <span class="k">for</span> <span class="n">counter</span> <span class="ow">in</span> <span class="n">average_counter_list</span><span class="p">:</span>
+        <span class="n">counter</span><span class="p">[</span><span class="n">counter</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># compute average</span>
+    <span class="n">average_image_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">image</span><span class="o">/</span><span class="n">counter</span> <span class="k">for</span> <span class="n">image</span><span class="p">,</span> <span class="n">counter</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image_value_sum_list</span><span class="p">,</span> <span class="n">average_counter_list</span><span class="p">)]</span>
+
+    <span class="c1"># compute error</span>
+    <span class="n">pixel_error_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">image_variance</span><span class="o">/</span><span class="n">counter</span><span class="p">)</span> <span class="k">for</span> <span class="n">image_variance</span><span class="p">,</span> <span class="n">counter</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">variance_tracker_list</span><span class="p">,</span> <span class="n">average_counter_list</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="n">average_image_list</span><span class="p">,</span> <span class="n">pixel_error_list</span><span class="p">,</span> <span class="n">pixel_counter_list</span>
+
+
+<span class="k">def</span> <span class="nf">_copy_hdul</span><span class="p">(</span><span class="n">hdul</span><span class="p">):</span>
+    <span class="c1"># iterate through the HDUList, copying each header data unit</span>
+    <span class="n">hdu_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">hdu</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span><span class="p">]</span>
+    <span class="c1"># generate and return a new HDUList</span>
+    <span class="k">return</span> <span class="n">fits</span><span class="o">.</span><span class="n">HDUList</span><span class="p">(</span><span class="n">hdu_list</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_write_average_data_to_file</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="p">,</span> <span class="n">source_filename_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">comment_string</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a specific method for frame averaging.</span>
+
+<span class="sd">    This is a method specific to averaging frames, so this docstring is not</span>
+<span class="sd">    published as part of the documentation. However, this method contains</span>
+<span class="sd">    important techniques for creating new HDULs from data derived from other</span>
+<span class="sd">    HDULs, so it is being given formal documentation.</span>
+
+<span class="sd">    This function takes the Header Data Units from the entry of a list of file</span>
+<span class="sd">    names, and replaces the data with the data list provided. It then modifies</span>
+<span class="sd">    the Primary header to indicate that the data is an average of several</span>
+<span class="sd">    frames, and adds the source filenames as a comment. It then writes the new</span>
+<span class="sd">    HDUL to file, with the specified file name and directory.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data_list</span>
+<span class="sd">    writeto_filename</span>
+<span class="sd">    source_filename_list</span>
+<span class="sd">    file_path</span>
+<span class="sd">    comment_string</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># add a None to the start of the data list, for the primary HDU</span>
+    <span class="n">data_list</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="c1"># copy the first HDUList</span>
+    <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">source_filename_list</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
+        <span class="n">hdulcopy</span> <span class="o">=</span> <span class="n">_copy_hdul</span><span class="p">(</span><span class="n">hdul</span><span class="p">)</span>
+
+    <span class="c1"># make generator for modifying the fits file</span>
+    <span class="n">hdul_generator</span> <span class="o">=</span> <span class="p">(</span><span class="n">hdu</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdulcopy</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">hdu</span><span class="p">,</span> <span class="n">avg_data</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">hdul_generator</span><span class="p">,</span> <span class="n">data_list</span><span class="p">):</span>
+        <span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">avg_data</span>
+        <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;OBSTYPE&#39;</span><span class="p">,</span> <span class="s1">&#39;average zero&#39;</span><span class="p">)</span>
+        <span class="c1"># input(&#39;press Enter to continue&#39;)</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">hdu</span><span class="p">)</span> <span class="ow">is</span> <span class="n">fits</span><span class="o">.</span><span class="n">hdu</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">PrimaryHDU</span><span class="p">:</span>
+            <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()))</span>
+            <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="s1">&#39;Modified OBSTYPE&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">comment_string</span><span class="p">:</span>
+                <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="n">comment_string</span><span class="p">)</span>
+            <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="s1">&#39;Source file names:&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">source_filename_list</span><span class="p">:</span>
+                <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+    <span class="n">hdulcopy</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="n">file_path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">writeto_filename</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_ds9_region"><a class="viewcode-back" href="../index.html#ccd_tools.get_ds9_region">[docs]</a><span class="k">def</span> <span class="nf">get_ds9_region</span><span class="p">(</span><span class="n">ds9</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bias_sec</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">get_data</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets the first single valid box region selected in ds9, and returns it as</span>
+<span class="sd">    a Region object.</span>
+
+<span class="sd">    This function requires that the region be selected and defined as a box.</span>
+<span class="sd">    (see DS9) It stores the region data and the bias subtracted data in a</span>
+<span class="sd">    region instance, as well as the region definition, source file, and</span>
+<span class="sd">    dimensions of the region.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ds9: DS9 object, optional</span>
+<span class="sd">        optional parameter to specify a DS9 target</span>
+<span class="sd">    get_data: bool, optional</span>
+<span class="sd">        If True, does not retrieve data from DS9. This to reduce the resource</span>
+<span class="sd">        requirements if data is being handled separately.</span>
+<span class="sd">    bias_sec: array-like, optional</span>
+<span class="sd">        This must be a list, tuple, or array of four numbers that define the</span>
+<span class="sd">        bias section of the image, in the form (xmin, xmax, ymin, ymax). The</span>
+<span class="sd">        numbers can be ints, floats, or strings that represent ints. If a float</span>
+<span class="sd">        is given, it will be truncated towards zero. If None, the bias section</span>
+<span class="sd">        will be retrieved from the header.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    region: Region object</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    IndexError</span>
+<span class="sd">        If a region has not been selected in DS9, or the region selected is not</span>
+<span class="sd">        a box.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from ccd_tools import *</span>
+<span class="sd">    &gt;&gt;&gt; ds9 = pyds9.DS9()</span>
+<span class="sd">    &gt;&gt;&gt; testregion = get_ds9_region(ds9=ds9)</span>
+<span class="sd">    # Region file format: DS9 version 4.1</span>
+<span class="sd">    global color=green dashlist=8 3 width=1 font=&quot;helvetica 10 normal roman&quot; select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1</span>
+<span class="sd">    image</span>
+<span class="sd">    Region definition:  [&#39;box(893.07248,1213.0923,72.575962,72.575909,359.99999)&#39;]</span>
+<span class="sd">    Bias from  /home/lee/Documents/k4m_160531_050920_ori.fits.fz[im1]</span>
+<span class="sd">    Bias Section is [2066:2112,18:2065]</span>
+<span class="sd">    ----------------</span>
+<span class="sd">    Bias statistics:</span>
+<span class="sd">    Mean: 3357.89</span>
+<span class="sd">    Median: 3358.00</span>
+<span class="sd">    Std: 4.50</span>
+<span class="sd">    Bias statistics after bias subtraction:</span>
+<span class="sd">    Mean: 0.00</span>
+<span class="sd">    Median: 0.11</span>
+<span class="sd">    Std: 4.50</span>
+<span class="sd">    &gt;&gt;&gt; testregion.data</span>
+<span class="sd">    array([[5504, 5487, 5503, ..., 5518, 5527, 5563],</span>
+<span class="sd">           [5488, 5495, 5527, ..., 5515, 5542, 5522],</span>
+<span class="sd">           [5561, 5540, 5586, ..., 5514, 5558, 5552],</span>
+<span class="sd">           ...,</span>
+<span class="sd">           [5588, 5552, 5615, ..., 5548, 5579, 5545],</span>
+<span class="sd">           [5534, 5530, 5553, ..., 5545, 5556, 5590],</span>
+<span class="sd">           [5587, 5560, 5579, ..., 5526, 5560, 5519]], dtype=int32)</span>
+<span class="sd">    &gt;&gt;&gt; testregion.bias_sub</span>
+<span class="sd">    array([[2146.10897334, 2129.10897334, 2145.10897334, ..., 2160.10897334,</span>
+<span class="sd">           2169.10897334, 2205.10897334],</span>
+<span class="sd">           [2130.10897334, 2137.10897334, 2169.10897334, ..., 2157.10897334,</span>
+<span class="sd">           2184.10897334, 2164.10897334],</span>
+<span class="sd">           [2203.10897334, 2182.10897334, 2228.10897334, ..., 2156.10897334,</span>
+<span class="sd">           2200.10897334, 2194.10897334],</span>
+<span class="sd">           ...,</span>
+<span class="sd">           [2230.10897334, 2194.10897334, 2257.10897334, ..., 2190.10897334,</span>
+<span class="sd">           2221.10897334, 2187.10897334],</span>
+<span class="sd">           [2176.10897334, 2172.10897334, 2195.10897334, ..., 2187.10897334,</span>
+<span class="sd">           2198.10897334, 2232.10897334],</span>
+<span class="sd">           [2229.10897334, 2202.10897334, 2221.10897334, ..., 2168.10897334,</span>
+<span class="sd">           2202.10897334, 2161.10897334]])</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># if a ds9 target is not specified, make one</span>
+    <span class="k">if</span> <span class="n">ds9</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">ds9</span> <span class="o">=</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Specify a target DS9() instance to retrieve the region from. &#39;</span>
+                  <span class="s1">&#39;e.g:</span><span class="se">\n</span><span class="s1">  d = pyds9.DS9(</span><span class="se">\&#39;</span><span class="s1">7f000101:43123</span><span class="se">\&#39;</span><span class="s1">)</span><span class="se">\n</span><span class="s1">  r = get_ds9_region(ds9=d)&#39;</span><span class="p">)</span>
+            <span class="k">raise</span>
+
+    <span class="c1"># set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.</span>
+    <span class="c1"># image format is required to properly index the data array.</span>
+    <span class="n">ds9</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;regions format ds9&#39;</span><span class="p">)</span>
+    <span class="n">ds9</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;regions system image&#39;</span><span class="p">)</span>
+
+    <span class="c1"># get selected region info</span>
+    <span class="n">raw_string</span> <span class="o">=</span> <span class="n">ds9</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;regions selected&#39;</span><span class="p">)</span>
+    <span class="c1"># print(raw_string)</span>
+
+    <span class="c1"># transform string into list that is organized by lines</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;.+&#39;</span><span class="p">)</span>  <span class="c1"># regex pattern that finds everything not a newline</span>
+    <span class="n">str_list</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">raw_string</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s1">&#39;box&#39;</span><span class="p">,</span> <span class="n">str_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="c1"># if re.match(&#39;# tile&#39;, str_list[0]):</span>
+            <span class="c1">#     print(&#39;Tile mode detected&#39;)</span>
+            <span class="c1">#     tiled = True</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="n">str_list</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="c1"># if the loop runs through the whole string without finding a region, print a message</span>
+    <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;No valid region found. Please select a valid box region.&#39;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">raise</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Region definition: &#39;</span><span class="p">,</span> <span class="n">str_list</span><span class="p">)</span>
+    <span class="c1"># parse the meta data string</span>
+    <span class="c1"># pattern finds all sequences of digits that may or may not contain a period</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;\d+\.?\d*&#39;</span><span class="p">)</span>
+    <span class="n">region_def</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">str_list</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># should probably add an exception test here</span>
+
+    <span class="c1"># make a region object to hold all the data</span>
+    <span class="n">region</span> <span class="o">=</span> <span class="n">Region</span><span class="p">()</span>
+
+    <span class="c1"># region definition: origin is lower left, given as x and y coord, with a width and a height</span>
+    <span class="n">x_coord</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">region_def</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">y_coord</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">region_def</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">region_def</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">region_def</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+    <span class="c1"># region slicing data</span>
+    <span class="n">xmin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">x_coord</span> <span class="o">-</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">xmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">x_coord</span> <span class="o">+</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">ymin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y_coord</span> <span class="o">-</span> <span class="n">height</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">ymax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">y_coord</span> <span class="o">+</span> <span class="n">height</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># if get_data is true, retrieve the data and bias subtracted data</span>
+    <span class="k">if</span> <span class="n">get_data</span><span class="p">:</span>
+
+        <span class="k">with</span> <span class="n">ds9</span><span class="o">.</span><span class="n">get_pyfits</span><span class="p">()</span> <span class="k">as</span> <span class="n">hdulist</span><span class="p">:</span>
+            <span class="n">hdu</span> <span class="o">=</span> <span class="n">hdulist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">frame_data</span> <span class="o">=</span> <span class="n">hdu</span><span class="o">.</span><span class="n">data</span>
+            <span class="c1"># determine what the valid data region is</span>
+            <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;\d+&#39;</span><span class="p">)</span>  <span class="c1"># pattern for all decimal digits</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">datasec</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;DATASEC&#39;</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; Unable to validate region.</span><span class="se">\n</span><span class="s1">Region may exceed image bounds&#39;</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># print(&#39;Data section: &#39;, datasec)</span>
+                <span class="c1"># if the selected region is outside the valid data range, throw a warning</span>
+                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">datasec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">xmin</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">datasec</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">xmax</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">datasec</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">ymin</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">datasec</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">&lt;</span> <span class="n">ymax</span><span class="p">:</span>
+                    <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;Region definition exceeds valid data range. </span><span class="se">\n</span><span class="s1"> &#39;</span> \
+                              <span class="s1">&#39;This could be due to entering the bias region, or crossing frames.&#39;</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">)</span>
+
+        <span class="c1"># store the raw data</span>
+        <span class="n">region</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">frame_data</span><span class="p">[</span><span class="n">ymin</span><span class="p">:</span><span class="n">ymax</span><span class="p">,</span> <span class="n">xmin</span><span class="p">:</span><span class="n">xmax</span><span class="p">]</span>
+
+        <span class="c1"># retrieve bias section, and calculate stats</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">bias_data</span> <span class="o">=</span> <span class="n">bias_from_ds9</span><span class="p">(</span><span class="n">ds9</span><span class="p">,</span> <span class="n">bias_sec</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; Unable to perform bias subtraction.&#39;</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># bias dependent operations</span>
+            <span class="n">bias_mean</span><span class="p">,</span> <span class="n">bias_median</span><span class="p">,</span> <span class="n">bias_std</span> <span class="o">=</span> <span class="n">sigma_clipped_stats</span><span class="p">(</span><span class="n">bias_data</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;----------------&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias statistics:&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Mean: </span><span class="si">{bias_mean:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Median: </span><span class="si">{bias_median:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Std: </span><span class="si">{bias_std:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="c1"># explicitly use the bias mean as the value to subtract</span>
+            <span class="n">bias</span> <span class="o">=</span> <span class="n">bias_mean</span>
+            <span class="c1"># store the bias stats</span>
+            <span class="n">region</span><span class="o">.</span><span class="n">bias_stats</span> <span class="o">=</span> <span class="n">bias_mean</span><span class="p">,</span> <span class="n">bias_median</span><span class="p">,</span> <span class="n">bias_std</span>
+
+            <span class="c1"># display the bias stats after subtraction</span>
+            <span class="n">test_mean</span><span class="p">,</span> <span class="n">test_median</span><span class="p">,</span> <span class="n">test_std</span> <span class="o">=</span> <span class="n">sigma_clipped_stats</span><span class="p">(</span><span class="n">bias_data</span> <span class="o">-</span> <span class="n">bias</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias statistics after bias subtraction: &#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Mean: </span><span class="si">{test_mean:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Median: </span><span class="si">{test_median:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Std: </span><span class="si">{test_std:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="c1"># perform the bias subtraction</span>
+            <span class="n">bias_sub_frame</span> <span class="o">=</span> <span class="n">frame_data</span> <span class="o">-</span> <span class="n">bias</span>
+            <span class="n">region</span><span class="o">.</span><span class="n">bias_sub</span> <span class="o">=</span> <span class="n">bias_sub_frame</span><span class="p">[</span><span class="n">ymin</span><span class="p">:</span><span class="n">ymax</span><span class="p">,</span> <span class="n">xmin</span><span class="p">:</span><span class="n">xmax</span><span class="p">]</span>
+
+    <span class="c1"># package all the meta data</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">x_coord</span> <span class="o">=</span> <span class="n">x_coord</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">y_coord</span> <span class="o">=</span> <span class="n">y_coord</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="n">width</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">height</span>
+
+    <span class="n">region</span><span class="o">.</span><span class="n">xmin</span> <span class="o">=</span> <span class="n">xmin</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">xmax</span> <span class="o">=</span> <span class="n">xmax</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">ymin</span> <span class="o">=</span> <span class="n">ymin</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">ymax</span> <span class="o">=</span> <span class="n">ymax</span>
+
+    <span class="n">region</span><span class="o">.</span><span class="n">source_file</span> <span class="o">=</span> <span class="n">ds9</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">)</span>
+    <span class="n">region</span><span class="o">.</span><span class="n">region_def</span> <span class="o">=</span> <span class="n">str_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">region</span></div>
+
+
+<div class="viewcode-block" id="make_source_mask"><a class="viewcode-back" href="../index.html#ccd_tools.make_source_mask">[docs]</a><span class="k">def</span> <span class="nf">make_source_mask</span><span class="p">(</span><span class="n">indata</span><span class="p">,</span> <span class="n">snr</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">npixels</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">display_mask</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for the make_source_mask from photutils. Makes a mask corresponding</span>
+<span class="sd">    to any flux sources in the data.</span>
+
+<span class="sd">    make_source_mask is imported as part of the function call, so if the</span>
+<span class="sd">    photutils package is not installed, or broken, it does not break the rest</span>
+<span class="sd">    of this package.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    indata: array-like</span>
+<span class="sd">        2D image data array containing a flux source to be masked.</span>
+<span class="sd">    snr: float, optional</span>
+<span class="sd">        Signal to noise ratio threshold above background to consider a pixel as</span>
+<span class="sd">        being part of a source.</span>
+<span class="sd">    npixels: int, optional</span>
+<span class="sd">        Minimum number of continuous pixels that are above the threshold that</span>
+<span class="sd">        an object must have to be considered a source.</span>
+<span class="sd">    display_mask: bool, optional</span>
+<span class="sd">        If True, a figure displaying the generated mask is produced</span>
+<span class="sd">    kwargs: dict</span>
+<span class="sd">        Keyword arguments for the make_source_mask function. See documentation</span>
+<span class="sd">        for photutils.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bool_mask: ndarray, bool</span>
+<span class="sd">        A boolean mask that corresponds to the data input. Pixels that are part</span>
+<span class="sd">        of a source are set to True.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">photutils</span> <span class="k">import</span> <span class="n">make_source_mask</span>
+
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">make_source_mask</span><span class="p">(</span><span class="n">indata</span><span class="p">,</span> <span class="n">snr</span><span class="p">,</span> <span class="n">npixels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">display_mask</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mask</span></div>
+
+
+<div class="viewcode-block" id="image_stats"><a class="viewcode-back" href="../index.html#ccd_tools.image_stats">[docs]</a><span class="k">def</span> <span class="nf">image_stats</span><span class="p">(</span><span class="n">imdata</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sigma_clip</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculates statistics on the background of the image data given.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    imdata: array-like</span>
+<span class="sd">        Data array of an image</span>
+<span class="sd">    mask: numpy.ndarray (bool), optional</span>
+<span class="sd">        A boolean mask with the same shape as data, where a True value</span>
+<span class="sd">        indicates the corresponding element of data is masked. Masked pixels</span>
+<span class="sd">        are excluded when computing the statistics.</span>
+<span class="sd">    mask_sources: bool, optional</span>
+<span class="sd">        If True, a source mask will be automatically generated using photutils.</span>
+<span class="sd">        This source mask will be combined with any mask passed through the mask</span>
+<span class="sd">        parameter. To set options for mask generation, generate a mask</span>
+<span class="sd">        separately, then pass it through the mask parameter.</span>
+<span class="sd">    sigma_clip: bool, optional</span>
+<span class="sd">        If True, sigma clipped statistics will be returned using the function</span>
+<span class="sd">        sigma_clipped_stats from astropy.stats</span>
+<span class="sd">    kwargs: dict, optional</span>
+<span class="sd">        Keyword arguments to be passed to sigma_clipped_stats</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    mean, median, stddev: float</span>
+<span class="sd">        the mean, median, and standard deviation of the background</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># if no mask is specified, mask any sources</span>
+    <span class="k">if</span> <span class="n">mask_sources</span><span class="p">:</span>
+        <span class="n">obj_mask</span> <span class="o">=</span> <span class="n">make_source_mask</span><span class="p">(</span><span class="n">imdata</span><span class="p">,</span> <span class="n">display_mask</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># if both a mask is specified and object masking is called for, combine the masks</span>
+        <span class="k">if</span> <span class="n">mask_sources</span> <span class="ow">and</span> <span class="n">mask</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">+</span> <span class="n">obj_mask</span>
+        <span class="c1"># otherwise, mask is just the object mask</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">obj_mask</span>
+
+    <span class="c1"># apply the mask. If the mask is None, this effectively does nothing</span>
+    <span class="n">masked_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">imdata</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sigma_clip</span><span class="p">:</span>
+        <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">std</span> <span class="o">=</span> <span class="n">sigma_clipped_stats</span><span class="p">(</span><span class="n">masked_data</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">masked_data</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">masked_data</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">masked_data</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Min pixel value: {np.min(masked_data):.2f}&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Max pixel value: {np.max(masked_data):.2f}&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Mean: </span><span class="si">{mean:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Median: </span><span class="si">{median:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Std: </span><span class="si">{std:.2f}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">std</span></div>
+
+
+<div class="viewcode-block" id="bias_from_ds9"><a class="viewcode-back" href="../index.html#ccd_tools.bias_from_ds9">[docs]</a><span class="k">def</span> <span class="nf">bias_from_ds9</span><span class="p">(</span><span class="n">ds9</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bias_sec</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function retrieves the bias section from a fits file loaded in DS9.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ds9: DS9() instance, optional</span>
+<span class="sd">        Target DS9 instance to retrieve the data from. If not specified, this</span>
+<span class="sd">        will be acquired automatcially.</span>
+<span class="sd">    bias_sec: array-like, optional</span>
+<span class="sd">        This must be a list, tuple, or array of four numbers that define the</span>
+<span class="sd">        bias section of the image, in the form (xmin, xmax, ymin, ymax). The</span>
+<span class="sd">        numbers can be ints, floats, or strings that represent ints. If a float</span>
+<span class="sd">        is given, it will be truncated towards zero. If None, the bias section</span>
+<span class="sd">        will be retrieved from the header.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bias_data: ndarray</span>
+<span class="sd">        Numpy array containing the pixel values of the bias section.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># if a ds9 target is not specified, make one</span>
+    <span class="k">if</span> <span class="n">ds9</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">ds9</span> <span class="o">=</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Specify a target DS9() instance to retrieve the bias from. &#39;</span>
+                  <span class="s1">&#39;e.g:</span><span class="se">\n</span><span class="s1">  d = pyds9.DS9(</span><span class="se">\&#39;</span><span class="s1">7f000101:43123</span><span class="se">\&#39;</span><span class="s1">)</span><span class="se">\n</span><span class="s1">  r = get_ds9_region(ds9=d)&#39;</span><span class="p">)</span>
+            <span class="k">raise</span>
+    <span class="n">hdulist</span> <span class="o">=</span> <span class="n">ds9</span><span class="o">.</span><span class="n">get_pyfits</span><span class="p">()</span>
+
+    <span class="c1"># hdulist.info()</span>
+    <span class="c1"># extract header data unit from list</span>
+    <span class="n">hdu</span> <span class="o">=</span> <span class="n">hdulist</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">bias_sec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># extract the bias definition</span>
+        <span class="n">bias_str</span> <span class="o">=</span> <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;BIASSEC&#39;</span><span class="p">]</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias from &#39;</span><span class="p">,</span> <span class="n">ds9</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias Section is &#39;</span> <span class="o">+</span> <span class="n">bias_str</span><span class="p">)</span>
+        <span class="c1"># print(type(bias_str))</span>
+        <span class="c1"># slice the string, for converting to int</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;\d+&#39;</span><span class="p">)</span>  <span class="c1"># pattern for all decimal digits</span>
+        <span class="c1"># print(pattern.findall(bias_str))</span>
+
+        <span class="c1"># hold the result in an object</span>
+        <span class="n">bias_sec</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">bias_str</span><span class="p">)</span>
+
+    <span class="c1"># typecast the indices to ints</span>
+    <span class="n">xmin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">xmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ymin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">ymax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+    <span class="c1"># retrieve the slice of data corresponding to the bias section</span>
+    <span class="n">im_data</span> <span class="o">=</span> <span class="n">hdu</span><span class="o">.</span><span class="n">data</span>
+    <span class="n">bias_data</span> <span class="o">=</span> <span class="n">im_data</span><span class="p">[</span><span class="n">ymin</span><span class="p">:</span><span class="n">ymax</span><span class="p">,</span> <span class="n">xmin</span><span class="p">:</span><span class="n">xmax</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">bias_data</span></div>
+
+
+<div class="viewcode-block" id="sky_subtract"><a class="viewcode-back" href="../index.html#ccd_tools.sky_subtract">[docs]</a><span class="k">def</span> <span class="nf">sky_subtract</span><span class="p">(</span><span class="n">im_data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns a background (sky) subtracted copy of image data.</span>
+
+<span class="sd">    Does so by calculating the mean, median and std of the background, and</span>
+<span class="sd">    subtracting the mean from the input data. By default, this masks any sources</span>
+<span class="sd">    and sigma clips.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    im_data : ndarray</span>
+<span class="sd">        requires an image data array</span>
+<span class="sd">    mask: ndarray (bool), optional</span>
+<span class="sd">        Boolean array the same size as im_data. Entries in im_data</span>
+<span class="sd">        corresponding to True values in mask will be ignored in</span>
+<span class="sd">        calculations.</span>
+<span class="sd">    mask_sources: bool, optional</span>
+<span class="sd">        If True, a source mask is automatically generated using photutils. This</span>
+<span class="sd">        option allows this feature to be disabled, in case photutils is not</span>
+<span class="sd">        available, or not working correctly.</span>
+<span class="sd">    kwargs: dict, optional</span>
+<span class="sd">        Keyword arguments to be passed to image_stats</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output_im: ndarray</span>
+<span class="sd">        The background subtracted data.</span>
+<span class="sd">    stats: tuple</span>
+<span class="sd">        The mean, median, and standard deviation of the background</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    background_stats: returns statistics on the background of image data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># calculate bias using mean</span>
+    <span class="c1"># clipped stats are used, just in case</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;----------------------&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Background statistics:&#39;</span><span class="p">)</span>
+    <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">std</span> <span class="o">=</span> <span class="n">image_stats</span><span class="p">(</span><span class="n">im_data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="n">mask_sources</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># subtract the mean from the image data</span>
+    <span class="n">output_im</span> <span class="o">=</span> <span class="n">im_data</span> <span class="o">-</span> <span class="n">mean</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Background stats after subtraction:&#39;</span><span class="p">)</span>
+    <span class="n">image_stats</span><span class="p">(</span><span class="n">output_im</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">mask_sources</span><span class="o">=</span><span class="n">mask_sources</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># package the statistics for return</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="n">mean</span><span class="p">,</span> <span class="n">median</span><span class="p">,</span> <span class="n">std</span>
+    <span class="c1"># return generated values</span>
+    <span class="k">return</span> <span class="n">output_im</span><span class="p">,</span> <span class="n">stats</span></div>
+
+
+<div class="viewcode-block" id="bias_subtract"><a class="viewcode-back" href="../index.html#ccd_tools.bias_subtract">[docs]</a><span class="k">def</span> <span class="nf">bias_subtract</span><span class="p">(</span><span class="n">hdu</span><span class="p">,</span> <span class="n">bias_sec</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pass header data unit.  REMEBER, this is pass-by-reference</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the bias subtracted data from a header data unit.</span>
+
+<span class="sd">    Takes a header data unit, and finds the mean of the bias section.</span>
+<span class="sd">    It then subtracts that mean from a copy of the image data, and returns</span>
+<span class="sd">    the result.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    hdu : fits header data unit</span>
+<span class="sd">        Image data stored in a fits file</span>
+<span class="sd">    bias_sec: array-like, optional</span>
+<span class="sd">        This must be a list, tuple, or array of four numbers, that define the</span>
+<span class="sd">        bias section of the image. The numbers can be ints, floats, or strings</span>
+<span class="sd">        that represent ints. If a float is given, it will be truncated</span>
+<span class="sd">        towards zero.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    output_im : numpy array</span>
+<span class="sd">        the image data array after bias subtraction</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Store the data from the HDU argument</span>
+    <span class="n">im_data</span> <span class="o">=</span> <span class="n">hdu</span><span class="o">.</span><span class="n">data</span>
+
+    <span class="c1"># check if parameters give the bias section, if not, automatically get it</span>
+    <span class="k">if</span> <span class="n">bias_sec</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># pull the bias section information from the header readout.</span>
+        <span class="n">bias_str</span> <span class="o">=</span> <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="p">[</span><span class="s1">&#39;BIASSEC&#39;</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias Section is &#39;</span> <span class="o">+</span> <span class="n">bias_str</span><span class="p">)</span>
+        <span class="c1"># print(type(bias_str))</span>
+        <span class="c1"># slice the string, for converting to int</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;\d+&#39;</span><span class="p">)</span>  <span class="c1"># pattern for all decimal digits</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">bias_str</span><span class="p">))</span>
+
+        <span class="c1"># hold the result in an object</span>
+        <span class="n">bias_sec</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">bias_str</span><span class="p">)</span>
+
+    <span class="c1"># Bias section data</span>
+    <span class="c1"># image is not indexed the same as python.</span>
+    <span class="c1"># Image indexes (x,y), from lower left</span>
+    <span class="c1"># python indexes (y,x)</span>
+
+    <span class="n">xmin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">xmax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">ymin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">ymax</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bias_sec</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+
+    <span class="n">bias_data</span> <span class="o">=</span> <span class="n">im_data</span><span class="p">[</span><span class="n">ymin</span><span class="p">:</span><span class="n">ymax</span><span class="p">,</span> <span class="n">xmin</span><span class="p">:</span><span class="n">xmax</span><span class="p">]</span>
+
+    <span class="c1"># Calculate the bias, using clipped statistics in case of cosmic ray events, and print the 		#results</span>
+    <span class="n">bias_mean</span><span class="p">,</span> <span class="n">bias_median</span><span class="p">,</span> <span class="n">bias_std</span> <span class="o">=</span> <span class="n">sigma_clipped_stats</span><span class="p">(</span><span class="n">bias_data</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias mean: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias_mean</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias median: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias_median</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Bias standerd deviation: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">bias_std</span><span class="p">))</span>
+
+    <span class="c1"># calculate and print the bias area statistics, for reference.  DISABLED</span>
+    <span class="c1"># print(&#39;Bias area after subtraction \n Mean: &#39;)</span>
+    <span class="n">output_im</span> <span class="o">=</span> <span class="n">im_data</span> <span class="o">-</span> <span class="n">bias_mean</span>
+
+    <span class="k">return</span> <span class="n">output_im</span></div>
+
+
+<div class="viewcode-block" id="display_data"><a class="viewcode-back" href="../index.html#ccd_tools.display_data">[docs]</a><span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="n">imdata</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A wrapper for matplotlib.pyplot.imshow, for displaying image data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    imdata: ndarray</span>
+<span class="sd">        image data array to be displayed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">ImageNormalize</span><span class="p">(</span><span class="n">stretch</span><span class="o">=</span><span class="n">SqrtStretch</span><span class="p">())</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">imdata</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="sigma_clipped_frame_average"><a class="viewcode-back" href="../index.html#ccd_tools.sigma_clipped_frame_average">[docs]</a><span class="k">def</span> <span class="nf">sigma_clipped_frame_average</span><span class="p">(</span><span class="n">filename_list</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function calculates a sigma clipped average of images stored in fits</span>
+<span class="sd">    files, by accessing them via a list of filenames.</span>
+
+<span class="sd">    This function averages frame data that has been stored on disk in fits</span>
+<span class="sd">    files. It does so by taking a list of file names. If a file path is not</span>
+<span class="sd">    specified, defaults to the current working directory. The result can be</span>
+<span class="sd">    written to file by specifying a filename, and is saved to the same</span>
+<span class="sd">    directory as the source files. This function presumes that each fits file</span>
+<span class="sd">    contains a Header Data Unit with extensions: the averages are computed on a</span>
+<span class="sd">    per extension basis, and returned as a list of data arrays.</span>
+
+<span class="sd">     Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename_list: list of strings</span>
+<span class="sd">        Strings containing the file names of the frames to be averaged.</span>
+<span class="sd">    path: str, optional</span>
+<span class="sd">        A string that contains the file path that contains the filenames given.</span>
+<span class="sd">        Defaults to the current working directory.</span>
+<span class="sd">    writeto_filename: str or None, optional</span>
+<span class="sd">        String that contains a file name to write the result to as HDU with</span>
+<span class="sd">        extensions, in fits format. If None, does not write to file.</span>
+<span class="sd">    sigma: float, optional</span>
+<span class="sd">        The number of standard deviations to use for both the lower and upper</span>
+<span class="sd">        clipping limit.</span>
+<span class="sd">    iters: int or None, optional</span>
+<span class="sd">        The number of iterations to perform sigma clipping, or None to clip</span>
+<span class="sd">        until convergence is achieved (i.e., continue until the last iteration</span>
+<span class="sd">        clips nothing).</span>
+<span class="sd">    kwargs: dict, optional</span>
+<span class="sd">        keyword options for sigma clipping. See Astropy SigmaClip.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    frame_mean: list</span>
+<span class="sd">        A list of ndarrays containing image data after averaging</span>
+<span class="sd">    pixel_error: list</span>
+<span class="sd">        A list of ndarrays containing the error on the average of each pixel.</span>
+<span class="sd">    pixel_tracker: list</span>
+<span class="sd">        A list of ndarrays containing how many data point were used to produce</span>
+<span class="sd">        an average, on a pixel by pixel basis.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+
+<span class="sd">    Pixels are clipped by comparing the pixel to the standarddeviation of the</span>
+<span class="sd">    image the pixel is in. How many data points are used to calculate the</span>
+<span class="sd">    average is kept track of on a pixel basis, and is returned as a list of</span>
+<span class="sd">    integer arrays that matches the list of image data arrays. If a particular</span>
+<span class="sd">    pixel is clipped out in all images, the average of that pixel will be</span>
+<span class="sd">    returned as zero. It&#39;s corresponding location in the data points tracker</span>
+<span class="sd">    will also be zero.</span>
+
+<span class="sd">    Error is calculated by taking the average variance of the clipped image</span>
+<span class="sd">    data, and dividing the result by the pixel tracker. This produces an array</span>
+<span class="sd">    of the same shape as the original image, with entries containing variances</span>
+<span class="sd">    on a pixel by pixel basis that have been reduced by the number of pixels</span>
+<span class="sd">    used to calculate the average for that pixel. The elementwise square root</span>
+<span class="sd">    of this array is returned as the error.</span>
+
+<span class="sd">    Sigma clipping significantly increases the runtime. If you wish to</span>
+<span class="sd">    eliminate defects such as cosmic rays, but do not want to wait for the</span>
+<span class="sd">    sigma clipping to finish, consider using frame_median.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># unpack the data, ignoring None values</span>
+    <span class="k">with</span> <span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">fits_stack</span><span class="p">:</span>
+        <span class="n">hdul_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">fits_stack</span><span class="o">.</span><span class="n">enter_context</span><span class="p">(</span><span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">fits_name</span><span class="p">))</span> <span class="k">for</span> <span class="n">fits_name</span> <span class="ow">in</span> <span class="n">filename_list</span><span class="p">]</span>
+        <span class="n">image_stack</span> <span class="o">=</span> <span class="p">[[</span><span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span> <span class="k">if</span> <span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span> <span class="k">for</span> <span class="n">hdul</span> <span class="ow">in</span> <span class="n">hdul_list</span><span class="p">]</span>
+    <span class="c1"># clean up the mess</span>
+
+    <span class="k">if</span> <span class="n">writeto_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">frame_clipped_average_data</span><span class="p">,</span> <span class="n">frame_clipped_average_error</span><span class="p">,</span> <span class="n">frame_included_pixel_tracker</span> <span class="o">=</span> \
+            <span class="n">_sigma_clipped_frame_average</span><span class="p">(</span><span class="n">image_stack</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="n">iters</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">comment_string</span> <span class="o">=</span> <span class="s1">&#39;Changed data to the sigma clipped average of &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">filename_list</span><span class="p">))</span> <span class="o">+</span> \
+                         <span class="s1">&#39; zero frames, of which this is the first&#39;</span>
+
+        <span class="n">_write_average_data_to_file</span><span class="p">(</span><span class="n">frame_clipped_average_data</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="p">,</span> <span class="n">source_filename_list</span><span class="o">=</span><span class="n">filename_list</span><span class="p">,</span>
+                                    <span class="n">file_path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">comment_string</span><span class="o">=</span><span class="n">comment_string</span><span class="p">)</span>
+
+        <span class="c1"># print(&#39;Amount of garbage:&#39;)</span>
+        <span class="c1"># print(gc.collect())</span>
+
+        <span class="k">return</span> <span class="n">frame_clipped_average_data</span><span class="p">,</span> <span class="n">frame_clipped_average_error</span><span class="p">,</span> <span class="n">frame_included_pixel_tracker</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_sigma_clipped_frame_average</span><span class="p">(</span><span class="n">image_stack</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="n">iters</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="frame_average"><a class="viewcode-back" href="../index.html#ccd_tools.frame_average">[docs]</a><span class="k">def</span> <span class="nf">frame_average</span><span class="p">(</span><span class="n">filename_list</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function returns an average and error estimate of images stored in fits files, by</span>
+<span class="sd">    accessing them via a list of filenames.</span>
+
+<span class="sd">    This function averages frame data that has been stored on disk in fits</span>
+<span class="sd">    files. It does so by taking a list of file names. If a file path is not</span>
+<span class="sd">    specified, defaults to the current working directory. The result can be</span>
+<span class="sd">    written to file by specifying a filename, and is saved to the same</span>
+<span class="sd">    directory as the source files. This function presumes that each fits file</span>
+<span class="sd">    contains a Header Data Unit with extensions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename_list: list</span>
+<span class="sd">        List of strings containing the file names of the frames to be averaged.</span>
+<span class="sd">    path: str, optional</span>
+<span class="sd">        A string that contains the file path that contains the filenames given.</span>
+<span class="sd">        Defaults to the current working directory.</span>
+<span class="sd">    writeto_filename: str or None, optional</span>
+<span class="sd">        String that contains a file name to write the result to as HDU with</span>
+<span class="sd">        extensions, in fits format. If None, does not write to file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    frame_mean: list</span>
+<span class="sd">        A list of ndarrays containing image data after averaging</span>
+<span class="sd">    pixel_error: list</span>
+<span class="sd">        A list of ndarrays correspoding to frame_mean, that contains the</span>
+<span class="sd">        per-pixel error on the average.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Data is taken from the extensions, stacked, and the averages computed.</span>
+<span class="sd">    This produces a list of data arrays, with each entry in the list</span>
+<span class="sd">    corresponding to an HDU data array.</span>
+
+<span class="sd">    The error is calculated by taking the standard deviation of the data used</span>
+<span class="sd">    to calculate the mean, on a pixel by pixel basis, and then dividing by the</span>
+<span class="sd">    square root of the number of frames. This produces a list of arrays the</span>
+<span class="sd">    same shape as the list of average frames.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># unpack the data, ignoring None values</span>
+    <span class="k">with</span> <span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">fits_stack</span><span class="p">:</span>
+        <span class="n">hdul_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">fits_stack</span><span class="o">.</span><span class="n">enter_context</span><span class="p">(</span><span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">fits_name</span><span class="p">))</span> <span class="k">for</span> <span class="n">fits_name</span> <span class="ow">in</span> <span class="n">filename_list</span><span class="p">]</span>
+        <span class="n">image_stack</span> <span class="o">=</span> <span class="p">[[</span><span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span> <span class="k">if</span> <span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span> <span class="k">for</span> <span class="n">hdul</span> <span class="ow">in</span> <span class="n">hdul_list</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">writeto_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">frame_average_data</span><span class="p">,</span> <span class="n">frame_average_error</span> <span class="o">=</span> <span class="n">_frame_mean</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)</span>
+        <span class="n">comment_string</span> <span class="o">=</span> <span class="s1">&#39;Changed data to the average of &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">filename_list</span><span class="p">))</span> <span class="o">+</span> \
+                         <span class="s1">&#39; zero frames, of which this is the first&#39;</span>
+
+        <span class="n">_write_average_data_to_file</span><span class="p">(</span><span class="n">frame_average_data</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="p">,</span> <span class="n">source_filename_list</span><span class="o">=</span><span class="n">filename_list</span><span class="p">,</span>
+                                    <span class="n">file_path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">comment_string</span><span class="o">=</span><span class="n">comment_string</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">frame_average_data</span><span class="p">,</span> <span class="n">frame_average_error</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_frame_mean</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="frame_median"><a class="viewcode-back" href="../index.html#ccd_tools.frame_median">[docs]</a><span class="k">def</span> <span class="nf">frame_median</span><span class="p">(</span><span class="n">filename_list</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function returns the median of several frames.</span>
+
+<span class="sd">    The frames are accessed from disk, by passing the file names. If a file</span>
+<span class="sd">    path is not specified, defaults to current working directory. The result</span>
+<span class="sd">    can be written to a fits file by specifying a file name, and is saved to</span>
+<span class="sd">    the same directory as the source files. This function presumes that each</span>
+<span class="sd">    fits file contains a Header Data Unit with extensions. The data is stacked,</span>
+<span class="sd">    and the median calculated on a per pixel basis. The median is intended to</span>
+<span class="sd">    be a fast way of getting a bias frame, with some robustness against any</span>
+<span class="sd">    outliers like cosmic rays.</span>
+
+<span class="sd">    The error is calculated by finding the standard error on the mean, and</span>
+<span class="sd">    multiplying by 1.253. Note that this only gives accurate error estimates</span>
+<span class="sd">    for data that is normally distributed. This should be kept in mind when</span>
+<span class="sd">    reviewing errors on data sets that contain outliers.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename_list: list</span>
+<span class="sd">        List of strings containing the file names of the frames to be averaged.</span>
+<span class="sd">    path: str, optional</span>
+<span class="sd">        A string that contains the file path for the file names given. Defaults</span>
+<span class="sd">        to the current working directory.</span>
+<span class="sd">    writeto_filename: str or None, optional</span>
+<span class="sd">        String that contains a file name to write the result to as HDU with</span>
+<span class="sd">        extensions, in fits format. If None, does not write to file.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    frame_median: list</span>
+<span class="sd">        A list of ndarrays containing image data after taking the median.</span>
+<span class="sd">    pixel_error: list</span>
+<span class="sd">        A list of ndarrays corresponding to frame_median, that contains the</span>
+<span class="sd">        per-pixel error on the average.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">with</span> <span class="n">ExitStack</span><span class="p">()</span> <span class="k">as</span> <span class="n">fits_stack</span><span class="p">:</span>
+        <span class="n">hdul_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">fits_stack</span><span class="o">.</span><span class="n">enter_context</span><span class="p">(</span><span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">fits_name</span><span class="p">))</span> <span class="k">for</span> <span class="n">fits_name</span> <span class="ow">in</span> <span class="n">filename_list</span><span class="p">]</span>
+        <span class="n">image_stack</span> <span class="o">=</span> <span class="p">[[</span><span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span> <span class="k">if</span> <span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span> <span class="k">for</span> <span class="n">hdul</span> <span class="ow">in</span> <span class="n">hdul_list</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">writeto_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">frame_median_data</span><span class="p">,</span> <span class="n">frame_median_error</span> <span class="o">=</span> <span class="n">_frame_median</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)</span>
+        <span class="n">comment_string</span> <span class="o">=</span> <span class="s1">&#39;Changed data to the median of&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">filename_list</span><span class="p">))</span> <span class="o">+</span> \
+                         <span class="s1">&#39;zero frames, of which this is the first&#39;</span>
+
+        <span class="n">_write_average_data_to_file</span><span class="p">(</span><span class="n">frame_median_data</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="p">,</span> <span class="n">source_filename_list</span><span class="o">=</span><span class="n">filename_list</span><span class="p">,</span>
+                                    <span class="n">file_path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">comment_string</span><span class="o">=</span><span class="n">comment_string</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">frame_median_data</span><span class="p">,</span> <span class="n">frame_median_error</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_frame_median</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="frame_subtract"><a class="viewcode-back" href="../index.html#ccd_tools.frame_subtract">[docs]</a><span class="k">def</span> <span class="nf">frame_subtract</span><span class="p">(</span><span class="n">minuend</span><span class="p">,</span> <span class="n">subtrahend</span><span class="p">,</span> <span class="n">display_in_ds9</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">write_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function subtracts one HDUList from another, and returns the resultant</span>
+<span class="sd">     data.</span>
+
+<span class="sd">    This function expects a primary Header Data Unit and HDU extensions in a</span>
+<span class="sd">    list. It can handle a single Primary HDU, but in that case expects a list</span>
+<span class="sd">    of one. The HDULists can be passes directly as parameters using Astropy</span>
+<span class="sd">    pyfits, as a filename string, or as an instance of pyds9.DS9. In the</span>
+<span class="sd">    latter cases, the HDUlist will be opened from file or retrieved from DS9.</span>
+<span class="sd">    It should be noted that DS9 will only pass a list of one HDU, the HDU</span>
+<span class="sd">    that is loaded in the current frame.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    minuend: HDUList, filename, or DS9 instance</span>
+<span class="sd">        The source of the data to be subtracted from.</span>
+<span class="sd">    subtrahend: HDUList, filename, or DS9 instance</span>
+<span class="sd">        The source of the data to be subtracted.</span>
+<span class="sd">    display_in_ds9: bool, optional</span>
+<span class="sd">        If True, the result will be displayed in a Display instance of DS9,</span>
+<span class="sd">        in a new frame. If the Display instance of DS9 is not already</span>
+<span class="sd">        running, one will opened.</span>
+<span class="sd">    write_to: str</span>
+<span class="sd">        (To be implemented) Name of file to write result to. Will create a</span>
+<span class="sd">        new file if one does not already exist.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    difference:</span>
+<span class="sd">        array containing the data after subtraction</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; filename1 = &#39;/home/lee/Documents/k4m_160531_050920_ori.fits.fz&#39;</span>
+<span class="sd">    &gt;&gt;&gt; filename2 = &#39;/home/lee/Documents/k4m_161228_132947_dri.fits.fz&#39;</span>
+<span class="sd">    &gt;&gt;&gt; with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hdul:</span>
+<span class="sd">    ...     data_list = frame_subtract(minuend_hdul, subtrahend_hdul, display_in_ds9=False)</span>
+<span class="sd">    &gt;&gt;&gt; data_list[0]</span>
+<span class="sd">    array([[4.700e+01, 5.700e+01, 1.049e+04, ..., 3.200e+01, 4.300e+01,</span>
+<span class="sd">            3.800e+01],</span>
+<span class="sd">           [3.400e+01, 2.800e+01, 3.225e+03, ..., 1.800e+01, 2.400e+01,</span>
+<span class="sd">            3.900e+01],</span>
+<span class="sd">           [3.300e+01, 1.800e+01, 2.774e+03, ..., 2.400e+01, 4.700e+01,</span>
+<span class="sd">            3.900e+01],</span>
+<span class="sd">           ...,</span>
+<span class="sd">           [3.800e+01, 1.600e+01, 2.500e+01, ..., 2.100e+01, 3.300e+01,</span>
+<span class="sd">            2.400e+01],</span>
+<span class="sd">           [1.000e+01, 2.000e+01, 1.800e+01, ..., 1.500e+01, 1.300e+01,</span>
+<span class="sd">            1.900e+01],</span>
+<span class="sd">           [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,</span>
+<span class="sd">            2.200e+01]])</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">:</span>
+        <span class="c1"># if argument is a ds9 instance, open the current frame as an hdul</span>
+        <span class="n">minuend_hdul</span> <span class="o">=</span> <span class="n">minuend</span><span class="o">.</span><span class="n">get_pyfits</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="c1"># presume a string is a filename</span>
+        <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
+            <span class="c1"># make a copy of the hdul from file</span>
+            <span class="n">minuend_hdul</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">HDUList</span><span class="p">([</span><span class="n">hdu</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># default cause, just pass the parameter directly</span>
+        <span class="n">minuend_hdul</span> <span class="o">=</span> <span class="n">minuend</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="ow">is</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">:</span>
+        <span class="c1"># if argument is a ds9 instance, open the current frame as an hdul</span>
+        <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="n">subtrahend</span><span class="o">.</span><span class="n">get_pyfits</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="c1"># presume a string is a filename</span>
+        <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
+            <span class="c1"># make a copy of the hdul from file</span>
+            <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">HDUList</span><span class="p">([</span><span class="n">hdu</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># default case, just pass directly</span>
+        <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="n">subtrahend</span>
+
+    <span class="c1"># special, but common use case:</span>
+    <span class="c1"># one frame is open in DS9, and the other is on file</span>
+    <span class="c1"># This requires matching the correct extension from file to the extension open in DS9</span>
+    <span class="c1"># (this is mostly due to DS9 only passing primary HDUs)</span>
+
+    <span class="c1"># handling the cases separately, because they require modifying different variables</span>
+    <span class="c1"># first case: minuend is DS9.</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">):</span>
+        <span class="c1"># retrieve extension name from DS9</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?&lt;=\[).*(?=\])&#39;</span><span class="p">)</span>  <span class="c1"># pattern that retrieves everything between &#39;[]&#39;</span>
+        <span class="n">extension_name</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">minuend</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="p">[</span><span class="n">_find_hdu_extension</span><span class="p">(</span><span class="n">extension_name</span><span class="p">,</span> <span class="n">subtrahend_hdul</span><span class="p">)]</span>
+
+    <span class="c1"># second case: subtrahend is DS9. This case is not expected, but is included for robustness</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="ow">is</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">):</span>
+        <span class="c1"># retrieve extension name from DS9</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(?&lt;=\[).*(?=\])&#39;</span><span class="p">)</span>  <span class="c1"># pattern that retrieves everything between &#39;[]&#39;</span>
+        <span class="n">extension_name</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">subtrahend</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># set minuend to be the corresponding extension</span>
+        <span class="n">minuend_hdul</span> <span class="o">=</span> <span class="p">[</span><span class="n">_find_hdu_extension</span><span class="p">(</span><span class="n">extension_name</span><span class="p">,</span> <span class="n">minuend_hdul</span><span class="p">)]</span>
+
+    <span class="c1"># calculate difference</span>
+    <span class="n">difference</span> <span class="o">=</span> <span class="n">_frame_subtract</span><span class="p">(</span><span class="n">minuend_hdul</span><span class="p">,</span> <span class="n">subtrahend_hdul</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">display_in_ds9</span><span class="p">:</span>
+        <span class="n">display</span> <span class="o">=</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="s1">&#39;Display&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="s1">&#39;-title Display&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">difference</span><span class="p">:</span>
+            <span class="n">display</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;frame new&#39;</span><span class="p">)</span>
+            <span class="n">display</span><span class="o">.</span><span class="n">set_np2arr</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">difference</span></div>
+
+
+<div class="viewcode-block" id="get_filenames"><a class="viewcode-back" href="../index.html#ccd_tools.get_filenames">[docs]</a><span class="k">def</span> <span class="nf">get_filenames</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">identifiers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">include_path</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieves a list containing the filenames from a target directory.</span>
+
+<span class="sd">    By default this retrieves all entries in the directory, hereafter referred</span>
+<span class="sd">    to as filenames. Specific file types or folders can be retrieved by</span>
+<span class="sd">    filtering by extension, a portion of the filename, or a list of</span>
+<span class="sd">    identifiers. Also supports Regular Expression patterns.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    path: string or path-like object, optional</span>
+<span class="sd">        The path from which to retrieve the filepaths. Default behavior is to</span>
+<span class="sd">        list the current directory.</span>
+<span class="sd">    extension: string, optional</span>
+<span class="sd">        The extension of the filenames to be retrieved. This works by comparing</span>
+<span class="sd">        the end of the entry names to the string specified, so it need not be</span>
+<span class="sd">        an extension, merely the end of entry-name you wish to retrieve.</span>
+<span class="sd">    pattern: string, optional</span>
+<span class="sd">        A pattern by which to filter what filenames and entries are returned. This</span>
+<span class="sd">        can be the whole filename, or just a portion. Alternately, a Regular</span>
+<span class="sd">        Expression can be provided. All entries that match in this fashion will be</span>
+<span class="sd">        returned.</span>
+<span class="sd">    identifiers: list or tuple, optional</span>
+<span class="sd">        Instead of a single string, a list of strings or numbers can be</span>
+<span class="sd">        provided. The list can contain whole filenames, or just portions of the</span>
+<span class="sd">        filenames. If a number is passed, the number is converted to a string.</span>
+<span class="sd">        This does not support Regular Expressions.</span>
+<span class="sd">    include_path: bool, optional</span>
+<span class="sd">        If True, the filenames are returned with the path appended to them.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    filename_list: a list of strings that contain the filenames after filtering</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    os.listdir: returns the names of all entries in a directory</span>
+<span class="sd">    re: module that supports regular expression matching operations for python</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+
+<span class="sd">    Retrieve a list of file names using a file extension, and a Regex pattern.</span>
+
+<span class="sd">    &gt;&gt;&gt; biasframe_path = &#39;/home/lee/Documents/bias_frames&#39;</span>
+<span class="sd">    &gt;&gt;&gt; extension = &#39;.fits.fz&#39;</span>
+<span class="sd">    &gt;&gt;&gt; pattern = &#39;(?=.*k4m)&#39;  # look-ahead regex pattern that checks for &#39;k4m&#39;</span>
+<span class="sd">    &gt;&gt;&gt; fits_list = get_filenames(biasframe_path, extension=extension, pattern=pattern)</span>
+<span class="sd">    &gt;&gt;&gt; print(fits_list)</span>
+<span class="sd">    [&#39;k4m_180211_231642_zri.fits.fz&#39;, &#39;k4m_180211_225927_zri.fits.fz&#39;, &#39;k4m_180211_231335_zri.fits.fz&#39;, &#39;k4m_180211_230119_zri.fits.fz&#39;, &#39;k4m_180211_231949_zri.fits.fz&#39;, &#39;k4m_180211_231834_zri.fits.fz&#39;, &#39;k4m_180211_231449_zri.fits.fz&#39;, &#39;k4m_180211_231604_zri.fits.fz&#39;, &#39;k4m_180211_231527_zri.fits.fz&#39;, &#39;k4m_180211_231911_zri.fits.fz&#39;, &#39;k4m_180211_230004_zri.fits.fz&#39;, &#39;k4m_180211_231719_zri.fits.fz&#39;, &#39;k4m_180211_231412_zri.fits.fz&#39;, &#39;k4m_180211_230042_zri.fits.fz&#39;, &#39;k4m_180211_231756_zri.fits.fz&#39;]</span>
+
+<span class="sd">    Retrieve a list of file names using a sequence of numbers</span>
+
+<span class="sd">    &gt;&gt;&gt; identifiers = np.arange(190800, 190900)</span>
+<span class="sd">    &gt;&gt;&gt; fits_list = get_filenames(biasframe_path, identifiers=identifiers)</span>
+<span class="sd">    &gt;&gt;&gt; fits_list</span>
+<span class="sd">    [&#39;c4d_170331_190830_zri.fits.fz&#39;, &#39;c4d_170331_190853_zri.fits.fz&#39;]</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># retrieve all filenames from the directory</span>
+    <span class="n">filename_list</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="c1"># keep all filenames with the proper extension</span>
+    <span class="k">if</span> <span class="n">extension</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">filename_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">filename</span> <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filename_list</span> <span class="k">if</span>
+                         <span class="n">filename</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">extension</span><span class="p">):]</span> <span class="o">==</span> <span class="n">extension</span><span class="p">]</span>
+
+    <span class="c1"># keep all filenames that match the pattern</span>
+    <span class="k">if</span> <span class="n">pattern</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">filename_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">filename</span> <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filename_list</span> <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">filename</span><span class="p">)]</span>
+
+    <span class="c1"># keep all filenames that match the identifiers provided</span>
+    <span class="k">if</span> <span class="n">identifiers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">storage_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">ident</span> <span class="ow">in</span> <span class="n">identifiers</span><span class="p">:</span>
+                <span class="n">storage_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">filename</span> <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filename_list</span> <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">ident</span><span class="p">)</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">])</span>
+
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">identifiers</span><span class="p">,</span> <span class="s1">&#39;is not iterable&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filename_list</span> <span class="o">=</span> <span class="n">storage_list</span>
+
+    <span class="k">if</span> <span class="n">include_path</span><span class="p">:</span>
+        <span class="n">filename_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">filename</span> <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filename_list</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">filename_list</span></div>
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">ccd_tools</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Lee Bernard.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

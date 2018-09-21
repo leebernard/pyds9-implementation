@@ -1,5 +1,5 @@
 .. ccd_tools documentation master file, created by
-   sphinx-quickstart on Thu Sep 20 15:05:41 2018.
+   sphinx-quickstart on Fri Sep 21 12:21:04 2018.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
@@ -10,7 +10,8 @@ Welcome to ccd_tools's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+.. automodule:: ccd_tools
+   :members:
 
 Indices and tables
 ==================
