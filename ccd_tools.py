@@ -1150,11 +1150,12 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         subtrahend_hdul = subtrahend
 
     # special, but common use case:
-    # one frame is open in DS9, and the other is on file
-    # This requires matching the correct extension from file to the extension open in DS9
+    # one frame is open in DS9, and the other is on file.
+    # This requires matching the correct extension from file to the extension open in DS9.
     # (this is mostly due to DS9 only passing primary HDUs)
 
-    # handling the cases separately, because they require modifying different variables
+    # Two sub-cases: subtracting file data from DS9 data, and subtracting DS9 data from file data.
+    # Handling the sub-cases separately, because they require modifying different variables.
     # first case: minuend is DS9.
     if type(minuend) is pyds9.DS9 and type(minuend) is not type(subtrahend):
         # retrieve extension name from DS9
