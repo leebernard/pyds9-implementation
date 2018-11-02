@@ -61,33 +61,26 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
 
     # add a None to the start of the data list, for the primary HDU
     data_list.insert(0, None)
-    # copy the first HDUList
-    with fits.open(file_path + '/' + source_filename_list[0]) as hdul:
-        hdulcopy = _copy_hdul(hdul)
-
     # make generator for modifying the fits file
-    hdul_generator = (hdu for hdu in hdulcopy)
+    hdul_generator = (hdu for hdu in minuend_hdul)
 
-    for hdu, avg_data in zip(hdul_generator, data_list):
-        hdu.data = avg_data
-        hdu.header.set('OBSTYPE', 'average zero')
+    for hdu, diff_data in zip(hdul_generator, data_list):
+        hdu.data = diff_data
+        hdu.header.set('OBSTYPE', 'subtracted')
         # input('press Enter to continue')
         if type(hdu) is fits.hdu.image.PrimaryHDU:
             hdu.header.add_comment(str(datetime.date.today()))
             hdu.header.add_comment('Modified OBSTYPE')
             if comment_string:
                 hdu.header.add_comment(comment_string)
-            hdu.header.add_comment('Source file names:')
-            for filename in source_filename_list:
-                hdu.header.add_comment(filename)
 
-    hdulcopy.writeto(file_path + '/' + writeto_filename)
+    minuend_hdul.writeto(file_path + '/' + writeto_filename)
 
 
 def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
-    data.
+     data.
 
     This function expects a primary Header Data Unit and HDU extensions in a
     list. It can handle a single Primary HDU, but in that case expects a list
@@ -194,7 +187,21 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
             display.set('frame new')
             display.set_np2arr(array)
 
+    if write_to:
+        # if one or both arguments are HDUs, throw a warning
+        if type(minuend) == str and type(subtrahend) == str:
+            comment_string = 'Result of subtraction of '+subtrahend+' from '+minuend'.'
+
+        # if an argument is DS9, throw an expection
+        if type(minuend) == pyds9.DS9 or type(subtrahend) == pyds9.DS9:
+            raise TypeError('Saving results is not supported with DS9.')
+    
+
+
+
     return difference
+
+
 
 
 # regex pattern for finding everything between brackets '[]'
@@ -206,7 +213,7 @@ filename2 = '/home/lee/Documents/k4m_161228_132947_dri.fits.fz'
 biasframe_file = '/home/lee/Documents/bias_frames/testaverage.fits.fz'
 # Open a new ds9 instance, or if already open, access it
 display = pyds9.DS9(target='display', start='-title display')
-ds9 = pyds9.DS9()
+ds9 = pyds9.DS9(target='ds9')
 ds9.set('file ' + filename1)
 with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hdul:
     data_list = frame_subtract(minuend_hdul, subtrahend_hdul)
