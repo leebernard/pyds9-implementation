@@ -188,14 +188,16 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
             display.set_np2arr(array)
 
     if write_to:
-        # if one or both arguments are HDUs, throw a warning
-        if type(minuend) == str and type(subtrahend) == str:
-            comment_string = 'Result of subtraction of '+subtrahend+' from '+minuend'.'
-
         # if an argument is DS9, throw an expection
         if type(minuend) == pyds9.DS9 or type(subtrahend) == pyds9.DS9:
             raise TypeError('Saving results is not supported with DS9.')
-    
+
+        # if one or both arguments are HDUs, throw a warning
+        if type(minuend) == fits.hdu.hdulist.HDUList and type(subtrahend) == str:
+            pass
+        
+        else:
+            comment_string = 'Result of subtraction of '+subtrahend+' from '+minuend+'.'
 
 
 
