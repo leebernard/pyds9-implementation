@@ -134,6 +134,31 @@ def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, wri
            [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,
             2.200e+01]])
 
+    >>> source_directory = '/home/lee/Documents'
+    ... filename1 = 'k4m_160531_050920_ori.fits.fz'
+    ... filename2 = 'k4m_161228_132947_dri.fits.fz'
+    >>> __ = frame_subtract(filename1, filename2, file_path=source_directory,
+    ...                     display_in_ds9=True, write_to='test_result.fits.fz')
+    >>> test_result = fits.open('/home/lee/Documents/test_result.fits.fz')
+    >>> test_result
+    [<astropy.io.fits.hdu.image.PrimaryHDU object at 0x7fb4c58dab38>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a914630>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49e90f320>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a9a8be0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49aa35f28>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494611208>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a91a400>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb496bcaef0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49494d668>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49490f7f0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948c6390>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494888c88>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948487b8>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49480bc18>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4947c44a8>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498433908>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498199d30>]
+    >>> test_result.close()
     """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
@@ -220,15 +245,13 @@ def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, wri
     return difference
 
 
-
-
 # regex pattern for finding everything between brackets '[]'
 # filename1 = '/home/lee/Documents/bias_frames/c4d_170331_202028_zri.fits.fz'
 # filename2 = '/home/lee/Documents/bias_frames/c4d_170331_191113_zri.fits.fz'
-
-filename1 = '/home/lee/Documents/k4m_160531_050920_ori.fits.fz'
-filename2 = '/home/lee/Documents/k4m_161228_132947_dri.fits.fz'
-biasframe_file = '/home/lee/Documents/bias_frames/testaverage.fits.fz'
+source_directory = '/home/lee/Documents'
+filename1 = 'k4m_160531_050920_ori.fits.fz'
+filename2 = 'k4m_161228_132947_dri.fits.fz'
+biasframe_file = 'testaverage.fits.fz'
 # Open a new ds9 instance, or if already open, access it
 display = pyds9.DS9(target='display', start='-title display')
 ds9 = pyds9.DS9(target='ds9')
@@ -241,4 +264,11 @@ with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hd
     #     display.set('frame new')
     #     display.set_np2arr(data)
 
+frame_subtract(filename1, filename2, file_path=source_directory, display_in_ds9=True, write_to='test_result.fits.fz')
 
+test_result = fits.open('/home/lee/Documents/test_result.fits.fz')
+test_result
+test_result.close()
+
+__ = frame_subtract(filename1, filename2, file_path=source_directory,
+                    display_in_ds9 = True, write_to = 'test_result.fits.fz')
