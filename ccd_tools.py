@@ -402,7 +402,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
                 hdu.header.add_comment(comment_string)
 
     minuend_hdul.writeto(file_path + '/' + writeto_filename)
-    
+
 
 def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     """
