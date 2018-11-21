@@ -5,6 +5,7 @@ import numpy as np
 import pyds9
 import datetime
 import re
+import warnings
 
 from astropy.io import fits
 
@@ -77,7 +78,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
     minuend_hdul.writeto(file_path + '/' + writeto_filename)
 
 
-def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
+def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
      data.
@@ -96,13 +97,15 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         The source of the data to be subtracted from.
     subtrahend: HDUList, filename, or DS9 instance
         The source of the data to be subtracted.
+    file_path: string, optional
+        The directory that contains the file names. Default is the current directory.
     display_in_ds9: bool, optional
         If True, the result will be displayed in a Display instance of DS9,
         in a new frame. If the Display instance of DS9 is not already
         running, one will opened.
     write_to: str
-        (To be implemented) Name of file to write result to. Will create a
-        new file if one does not already exist.
+        Name of file to write result to. It will create a new file if one does not
+        already exist.
 
     Returns
     -------
@@ -136,7 +139,8 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         minuend_hdul = minuend.get_pyfits()
     elif type(minuend) is str:
         # presume a string is a filename
-        with fits.open(minuend) as hdul:
+        # open the filename in the indicated directory
+        with fits.open(file_path+'/'+minuend) as hdul:
             # make a copy of the hdul from file
             minuend_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
     else:
@@ -148,7 +152,8 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         subtrahend_hdul = subtrahend.get_pyfits()
     elif type(subtrahend) is str:
         # presume a string is a filename
-        with fits.open(subtrahend) as hdul:
+        # open the filename in the indicated directory
+        with fits.open(file_path+'/'+subtrahend) as hdul:
             # make a copy of the hdul from file
             subtrahend_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
     else:
@@ -192,14 +197,24 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         if type(minuend) == pyds9.DS9 or type(subtrahend) == pyds9.DS9:
             raise TypeError('Saving results is not supported with DS9.')
 
-        # if one or both arguments are HDUs, throw a warning
-        if type(minuend) == fits.hdu.hdulist.HDUList and type(subtrahend) == str:
-            pass
-        
+        # if one or both arguments are HDUs, throw a warning, and continue
+        if type(minuend) == fits.hdu.hdulist.HDUList:
+            warnings.warn('Source file name for the minuend is unknown.', category=UserWarning)
+            minuend_source = 'unknown'
         else:
-            comment_string = 'Result of subtraction of '+subtrahend+' from '+minuend+'.'
+            minuend_source = minuend
 
+        if type(subtrahend) == fits.hdu.hdulist.HDUList:
+            warnings.warn('Source file name for the subtrahend is unknown', category=UserWarning)
+            subtrahend_source = 'unknown'
+        else:
+            subtrahend_source = subtrahend
 
+        # generate a comment string that updates the header with the source file names
+        comment_string = 'Result of subtraction of '+subtrahend_source+' from '+minuend_source+'.'
+
+        # save the result to file
+        _write_difference_to_file(difference, write_to, minuend_hdul, file_path=file_path, comment_string=comment_string)
 
     return difference
 
