@@ -105,7 +105,8 @@ def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, wri
         running, one will opened.
     write_to: str
         Name of file to write result to. It will create a new file if one does not
-        already exist.
+        already exist. Due to inconsistencies between how python and SAOImage DS9 handles
+        header data units, this is disallowed when DS9 is one or both of the sources.
 
     Returns
     -------
@@ -195,7 +196,7 @@ def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, wri
     if write_to:
         # if an argument is DS9, throw an expection
         if type(minuend) == pyds9.DS9 or type(subtrahend) == pyds9.DS9:
-            raise TypeError('Saving results is not supported with DS9.')
+            raise TypeError('Saving results automatically is disallowed when a source is DS9.')
 
         # if one or both arguments are HDUs, throw a warning, and continue
         if type(minuend) == fits.hdu.hdulist.HDUList:
