@@ -5,7 +5,7 @@ caution.
 
 Classes
 -------
-The Region class is for holding segments of image data in a convenient
+The 'Region' class is for holding segments of image data in a convenient
 wrapper.
 
 Functions
@@ -38,7 +38,7 @@ sigma_clipped_frame_average:
     clipped.
 """
 
-__version__ = '0.2'
+__version__ = '0.2b'
 __author__ = 'Lee Bernard'
 # import needed packages
 
@@ -148,8 +148,6 @@ class Region:
             Flag for masking sources or not
         kwargs: dict
             Keyword arguments to be passed to image stats
-        Returns
-        -------
 
         See Also
         --------
@@ -179,8 +177,8 @@ class Region:
         the sky_sub attribute.
 
         This is a wrapper for sky_subtract. If bias subtracted data is available,
-        it uses that. Otherwise, it uses data in the data attribute. If neither are
-         available, raises an exception.
+        it uses that. Otherwise, it uses data in the data attribute. If neither
+        are available, raises an exception.
 
         Parameters
         ----------
@@ -341,9 +339,6 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
     file_path
     comment_string
 
-    Returns
-    -------
-
     """
 
     # add a None to the start of the data list, for the primary HDU
@@ -369,6 +364,39 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
                 hdu.header.add_comment(filename)
 
     hdulcopy.writeto(file_path + '/' + writeto_filename)
+
+
+def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_path='.', comment_string=None):
+    """
+    This is a specific method for frame subtraction.
+
+
+    Parameters
+    ----------
+    data_list
+    writeto_filename
+    source_file_list
+    file_path
+    comment_string
+
+    """
+
+    # add a None to the start of the data list, for the primary HDU
+    data_list.insert(0, None)
+    # make generator for modifying the fits file
+    hdul_generator = (hdu for hdu in minuend_hdul)
+
+    for hdu, diff_data in zip(hdul_generator, data_list):
+        hdu.data = diff_data
+        hdu.header.set('OBSTYPE', 'subtracted')
+        # input('press Enter to continue')
+        if type(hdu) is fits.hdu.image.PrimaryHDU:
+            hdu.header.add_comment(str(datetime.date.today()))
+            hdu.header.add_comment('Modified OBSTYPE')
+            if comment_string:
+                hdu.header.add_comment(comment_string)
+
+    minuend_hdul.writeto(file_path + '/' + writeto_filename)
 
 
 def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
@@ -403,7 +431,8 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     ------
     IndexError
         If a region has not been selected in DS9, or the region selected is not
-         a box.
+        a box.
+
     Examples
     --------
     >>> from ccd_tools import *
@@ -434,19 +463,18 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
            [5587, 5560, 5579, ..., 5526, 5560, 5519]], dtype=int32)
     >>> testregion.bias_sub
     array([[2146.10897334, 2129.10897334, 2145.10897334, ..., 2160.10897334,
-            2169.10897334, 2205.10897334],
+           2169.10897334, 2205.10897334],
            [2130.10897334, 2137.10897334, 2169.10897334, ..., 2157.10897334,
-            2184.10897334, 2164.10897334],
+           2184.10897334, 2164.10897334],
            [2203.10897334, 2182.10897334, 2228.10897334, ..., 2156.10897334,
-            2200.10897334, 2194.10897334],
+           2200.10897334, 2194.10897334],
            ...,
            [2230.10897334, 2194.10897334, 2257.10897334, ..., 2190.10897334,
-            2221.10897334, 2187.10897334],
+           2221.10897334, 2187.10897334],
            [2176.10897334, 2172.10897334, 2195.10897334, ..., 2187.10897334,
-            2198.10897334, 2232.10897334],
+           2198.10897334, 2232.10897334],
            [2229.10897334, 2202.10897334, 2221.10897334, ..., 2168.10897334,
-            2202.10897334, 2161.10897334]])
-
+           2202.10897334, 2161.10897334]])
 
     """
 
@@ -608,6 +636,7 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     bool_mask: ndarray, bool
         A boolean mask that corresponds to the data input. Pixels that are part
         of a source are set to True.
+
     """
     from photutils import make_source_mask
 
@@ -634,8 +663,8 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwarg
     mask_sources: bool, optional
         If True, a source mask will be automatically generated using photutils.
         This source mask will be combined with any mask passed through the mask
-         parameter. To set options for mask generation, generate a mask
-         separately, then pass it through the mask parameter.
+        parameter. To set options for mask generation, generate a mask
+        separately, then pass it through the mask parameter.
     sigma_clip: bool, optional
         If True, sigma clipped statistics will be returned using the function
         sigma_clipped_stats from astropy.stats
@@ -646,6 +675,7 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwarg
     -------
     mean, median, stddev: float
         the mean, median, and standard deviation of the background
+
     """
     # if no mask is specified, mask any sources
     if mask_sources:
@@ -749,12 +779,12 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
         requires an image data array
     mask: ndarray (bool), optional
         Boolean array the same size as im_data. Entries in im_data
-         corresponding to True values in mask will be ignored in
-         calculations.
+        corresponding to True values in mask will be ignored in
+        calculations.
     mask_sources: bool, optional
         If True, a source mask is automatically generated using photutils. This
-         option allows this feature to be disabled, in case photutils is not
-         available, or not working correctly.
+        option allows this feature to be disabled, in case photutils is not
+        available, or not working correctly.
     kwargs: dict, optional
         Keyword arguments to be passed to image_stats
 
@@ -882,25 +912,6 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
     contains a Header Data Unit with extensions: the averages are computed on a
     per extension basis, and returned as a list of data arrays.
 
-    Pixels are clipped by comparing the pixel to the standard
-    deviation of the image the pixel is in. How many data points are used to
-    calculate the average is kept track of on a pixel basis, and is returned
-    as a list of integer arrays that matches the list of image data arrays. If
-    a particular pixel is clipped out in all images, the average of that pixel
-    will be returned as zero. It's corresponding location in the data points
-    tracker will also be zero.
-
-    Error is calculated by taking the average variance of the clipped image
-    data, and dividing the result by the pixel tracker. This produces an array
-    of the same shape as the original image, with entries containing variances
-    on a pixel by pixel basis that have been reduced by the number of pixels
-    used to calculate the average for that pixel. The elementwise square root
-    of this array is returned as the error.
-
-    Sigma clipping significantly increases the runtime. If you wish to
-    eliminate defects such as cosmic rays, but do not want to wait for the
-    sigma clipping to finish, consider using frame_median.
-
      Parameters
     ----------
     filename_list: list of strings
@@ -930,6 +941,29 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
     pixel_tracker: list
         A list of ndarrays containing how many data point were used to produce
         an average, on a pixel by pixel basis.
+
+    Notes
+    -----
+
+    Pixels are clipped by comparing the pixel to the standarddeviation of the
+    image the pixel is in. How many data points are used to calculate the
+    average is kept track of on a pixel basis, and is returned as a list of
+    integer arrays that matches the list of image data arrays. If a particular
+    pixel is clipped out in all images, the average of that pixel will be
+    returned as zero. It's corresponding location in the data points tracker
+    will also be zero.
+
+    Error is calculated by taking the average variance of the clipped image
+    data, and dividing the result by the pixel tracker. This produces an array
+    of the same shape as the original image, with entries containing variances
+    on a pixel by pixel basis that have been reduced by the number of pixels
+    used to calculate the average for that pixel. The elementwise square root
+    of this array is returned as the error.
+
+    Sigma clipping significantly increases the runtime. If you wish to
+    eliminate defects such as cosmic rays, but do not want to wait for the
+    sigma clipping to finish, consider using frame_median.
+
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
@@ -965,14 +999,7 @@ def frame_average(filename_list, path='.', writeto_filename=None):
     specified, defaults to the current working directory. The result can be
     written to file by specifying a filename, and is saved to the same
     directory as the source files. This function presumes that each fits file
-    contains a Header Data Unit with extensions. Data is taken from the
-    extensions, stacked, and the averages computed. This produces a list of
-    data arrays corresponding to the HDU data arrays.
-
-    The error is calculated by taking the standard deviation of the data used
-    to calculate the mean, on a pixel by pixel basis, and then dividing by the
-    square root of the number of frames. This produces a list of arrays the
-    same shape as the frame data.
+    contains a Header Data Unit with extensions.
 
     Parameters
     ----------
@@ -992,6 +1019,18 @@ def frame_average(filename_list, path='.', writeto_filename=None):
     pixel_error: list
         A list of ndarrays correspoding to frame_mean, that contains the
         per-pixel error on the average.
+
+    Notes
+    -----
+    Data is taken from the extensions, stacked, and the averages computed.
+    This produces a list of data arrays, with each entry in the list
+    corresponding to an HDU data array.
+
+    The error is calculated by taking the standard deviation of the data used
+    to calculate the mean, on a pixel by pixel basis, and then dividing by the
+    square root of the number of frames. This produces a list of arrays the
+    same shape as the list of average frames.
+
     """
     # unpack the data, ignoring None values
     with ExitStack() as fits_stack:
@@ -1064,8 +1103,7 @@ def frame_median(filename_list, path='.', writeto_filename=None):
         return _frame_median(image_stack)
 
 
-
-def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
+def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
      data.
@@ -1084,13 +1122,16 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         The source of the data to be subtracted from.
     subtrahend: HDUList, filename, or DS9 instance
         The source of the data to be subtracted.
+    file_path: string, optional
+        The directory that contains the file names. Default is the current directory.
     display_in_ds9: bool, optional
         If True, the result will be displayed in a Display instance of DS9,
         in a new frame. If the Display instance of DS9 is not already
         running, one will opened.
     write_to: str
-        (To be implemented) Name of file to write result to. Will create a
-        new file if one does not already exist.
+        Name of file to write result to. It will create a new file if one does not
+        already exist. Due to inconsistencies between how python and SAOImage DS9 handles
+        header data units, this is disallowed when DS9 is one or both of the sources.
 
     Returns
     -------
@@ -1118,13 +1159,39 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
            [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,
             2.200e+01]])
 
+    >>> source_directory = '/home/lee/Documents'
+    ... filename1 = 'k4m_160531_050920_ori.fits.fz'
+    ... filename2 = 'k4m_161228_132947_dri.fits.fz'
+    >>> __ = frame_subtract(filename1, filename2, file_path=source_directory,
+    ...                     display_in_ds9=True, write_to='test_result.fits.fz')
+    >>> test_result = fits.open('/home/lee/Documents/test_result.fits.fz')
+    >>> test_result
+    [<astropy.io.fits.hdu.image.PrimaryHDU object at 0x7fb4c58dab38>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a914630>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49e90f320>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a9a8be0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49aa35f28>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494611208>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a91a400>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb496bcaef0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49494d668>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49490f7f0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948c6390>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494888c88>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948487b8>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49480bc18>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4947c44a8>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498433908>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498199d30>]
+    >>> test_result.close()
     """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
         minuend_hdul = minuend.get_pyfits()
     elif type(minuend) is str:
         # presume a string is a filename
-        with fits.open(minuend) as hdul:
+        # open the filename in the indicated directory
+        with fits.open(file_path+'/'+minuend) as hdul:
             # make a copy of the hdul from file
             minuend_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
     else:
@@ -1136,7 +1203,8 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         subtrahend_hdul = subtrahend.get_pyfits()
     elif type(subtrahend) is str:
         # presume a string is a filename
-        with fits.open(subtrahend) as hdul:
+        # open the filename in the indicated directory
+        with fits.open(file_path+'/'+subtrahend) as hdul:
             # make a copy of the hdul from file
             subtrahend_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
     else:
@@ -1144,11 +1212,12 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         subtrahend_hdul = subtrahend
 
     # special, but common use case:
-    # one frame is open in DS9, and the other is on file
-    # This requires matching the correct extension from file to the extension open in DS9
+    # one frame is open in DS9, and the other is on file.
+    # This requires matching the correct extension from file to the extension open in DS9.
     # (this is mostly due to DS9 only passing primary HDUs)
 
-    # handling the cases separately, because they require modifying different variables
+    # Two sub-cases: subtracting file data from DS9 data, and subtracting DS9 data from file data.
+    # Handling the sub-cases separately, because they require modifying different variables.
     # first case: minuend is DS9.
     if type(minuend) is pyds9.DS9 and type(minuend) is not type(subtrahend):
         # retrieve extension name from DS9
@@ -1174,6 +1243,31 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         for array in difference:
             display.set('frame new')
             display.set_np2arr(array)
+
+    if write_to:
+        # if an argument is DS9, throw an expection
+        if type(minuend) == pyds9.DS9 or type(subtrahend) == pyds9.DS9:
+            raise TypeError('Saving results automatically is disallowed when a source is DS9.')
+
+        # if one or both arguments are HDUs, throw a warning, and continue
+        if type(minuend) == fits.hdu.hdulist.HDUList:
+            warnings.warn('Source file name for the minuend is unknown.', category=UserWarning)
+            minuend_source = 'unknown'
+        else:
+            minuend_source = minuend
+
+        if type(subtrahend) == fits.hdu.hdulist.HDUList:
+            warnings.warn('Source file name for the subtrahend is unknown', category=UserWarning)
+            subtrahend_source = 'unknown'
+        else:
+            subtrahend_source = subtrahend
+
+        # generate a comment string that updates the header with the source file names
+        comment_string = 'Result of subtraction of '+subtrahend_source+' from '+minuend_source+'.'
+
+        # save the result to file
+        _write_difference_to_file(difference, write_to, minuend_hdul, file_path=file_path, comment_string=comment_string)
+
     return difference
 
 
@@ -1193,7 +1287,7 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
         list the current directory.
     extension: string, optional
         The extension of the filenames to be retrieved. This works by comparing
-         the end of the entry names to the string specified, so it need not be
+        the end of the entry names to the string specified, so it need not be
         an extension, merely the end of entry-name you wish to retrieve.
     pattern: string, optional
         A pattern by which to filter what filenames and entries are returned. This
@@ -1235,7 +1329,6 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
     >>> fits_list = get_filenames(biasframe_path, identifiers=identifiers)
     >>> fits_list
     ['c4d_170331_190830_zri.fits.fz', 'c4d_170331_190853_zri.fits.fz']
-
 
     """
     # retrieve all filenames from the directory
