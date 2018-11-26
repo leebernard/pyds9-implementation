@@ -72,7 +72,7 @@
 <span class="sd">    clipped.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.2&#39;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.2b&#39;</span>
 <span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Lee Bernard&#39;</span>
 <span class="c1"># import needed packages</span>
 
@@ -398,6 +398,39 @@
                 <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
 
     <span class="n">hdulcopy</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="n">file_path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">writeto_filename</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_write_difference_to_file</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">writeto_filename</span><span class="p">,</span> <span class="n">minuend_hdul</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">comment_string</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a specific method for frame subtraction.</span>
+
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data_list</span>
+<span class="sd">    writeto_filename</span>
+<span class="sd">    source_file_list</span>
+<span class="sd">    file_path</span>
+<span class="sd">    comment_string</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># add a None to the start of the data list, for the primary HDU</span>
+    <span class="n">data_list</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="c1"># make generator for modifying the fits file</span>
+    <span class="n">hdul_generator</span> <span class="o">=</span> <span class="p">(</span><span class="n">hdu</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">minuend_hdul</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">hdu</span><span class="p">,</span> <span class="n">diff_data</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">hdul_generator</span><span class="p">,</span> <span class="n">data_list</span><span class="p">):</span>
+        <span class="n">hdu</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">diff_data</span>
+        <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;OBSTYPE&#39;</span><span class="p">,</span> <span class="s1">&#39;subtracted&#39;</span><span class="p">)</span>
+        <span class="c1"># input(&#39;press Enter to continue&#39;)</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">hdu</span><span class="p">)</span> <span class="ow">is</span> <span class="n">fits</span><span class="o">.</span><span class="n">hdu</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">PrimaryHDU</span><span class="p">:</span>
+            <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()))</span>
+            <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="s1">&#39;Modified OBSTYPE&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">comment_string</span><span class="p">:</span>
+                <span class="n">hdu</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">add_comment</span><span class="p">(</span><span class="n">comment_string</span><span class="p">)</span>
+
+    <span class="n">minuend_hdul</span><span class="o">.</span><span class="n">writeto</span><span class="p">(</span><span class="n">file_path</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">writeto_filename</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="get_ds9_region"><a class="viewcode-back" href="../index.html#ccd_tools.get_ds9_region">[docs]</a><span class="k">def</span> <span class="nf">get_ds9_region</span><span class="p">(</span><span class="n">ds9</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bias_sec</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">get_data</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -1104,8 +1137,7 @@
         <span class="k">return</span> <span class="n">_frame_median</span><span class="p">(</span><span class="n">image_stack</span><span class="p">)</span></div>
 
 
-
-<div class="viewcode-block" id="frame_subtract"><a class="viewcode-back" href="../index.html#ccd_tools.frame_subtract">[docs]</a><span class="k">def</span> <span class="nf">frame_subtract</span><span class="p">(</span><span class="n">minuend</span><span class="p">,</span> <span class="n">subtrahend</span><span class="p">,</span> <span class="n">display_in_ds9</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">write_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="frame_subtract"><a class="viewcode-back" href="../index.html#ccd_tools.frame_subtract">[docs]</a><span class="k">def</span> <span class="nf">frame_subtract</span><span class="p">(</span><span class="n">minuend</span><span class="p">,</span> <span class="n">subtrahend</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">display_in_ds9</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">write_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This function subtracts one HDUList from another, and returns the resultant</span>
 <span class="sd">     data.</span>
@@ -1124,13 +1156,16 @@
 <span class="sd">        The source of the data to be subtracted from.</span>
 <span class="sd">    subtrahend: HDUList, filename, or DS9 instance</span>
 <span class="sd">        The source of the data to be subtracted.</span>
+<span class="sd">    file_path: string, optional</span>
+<span class="sd">        The directory that contains the file names. Default is the current directory.</span>
 <span class="sd">    display_in_ds9: bool, optional</span>
 <span class="sd">        If True, the result will be displayed in a Display instance of DS9,</span>
 <span class="sd">        in a new frame. If the Display instance of DS9 is not already</span>
 <span class="sd">        running, one will opened.</span>
 <span class="sd">    write_to: str</span>
-<span class="sd">        (To be implemented) Name of file to write result to. Will create a</span>
-<span class="sd">        new file if one does not already exist.</span>
+<span class="sd">        Name of file to write result to. It will create a new file if one does not</span>
+<span class="sd">        already exist. Due to inconsistencies between how python and SAOImage DS9 handles</span>
+<span class="sd">        header data units, this is disallowed when DS9 is one or both of the sources.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -1158,13 +1193,39 @@
 <span class="sd">           [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,</span>
 <span class="sd">            2.200e+01]])</span>
 
+<span class="sd">    &gt;&gt;&gt; source_directory = &#39;/home/lee/Documents&#39;</span>
+<span class="sd">    ... filename1 = &#39;k4m_160531_050920_ori.fits.fz&#39;</span>
+<span class="sd">    ... filename2 = &#39;k4m_161228_132947_dri.fits.fz&#39;</span>
+<span class="sd">    &gt;&gt;&gt; __ = frame_subtract(filename1, filename2, file_path=source_directory,</span>
+<span class="sd">    ...                     display_in_ds9=True, write_to=&#39;test_result.fits.fz&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; test_result = fits.open(&#39;/home/lee/Documents/test_result.fits.fz&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; test_result</span>
+<span class="sd">    [&lt;astropy.io.fits.hdu.image.PrimaryHDU object at 0x7fb4c58dab38&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a914630&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49e90f320&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a9a8be0&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49aa35f28&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494611208&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a91a400&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb496bcaef0&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49494d668&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49490f7f0&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948c6390&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494888c88&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948487b8&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49480bc18&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4947c44a8&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498433908&gt;,</span>
+<span class="sd">    &lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498199d30&gt;]</span>
+<span class="sd">    &gt;&gt;&gt; test_result.close()</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">:</span>
         <span class="c1"># if argument is a ds9 instance, open the current frame as an hdul</span>
         <span class="n">minuend_hdul</span> <span class="o">=</span> <span class="n">minuend</span><span class="o">.</span><span class="n">get_pyfits</span><span class="p">()</span>
     <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
         <span class="c1"># presume a string is a filename</span>
-        <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
+        <span class="c1"># open the filename in the indicated directory</span>
+        <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_path</span><span class="o">+</span><span class="s1">&#39;/&#39;</span><span class="o">+</span><span class="n">minuend</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
             <span class="c1"># make a copy of the hdul from file</span>
             <span class="n">minuend_hdul</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">HDUList</span><span class="p">([</span><span class="n">hdu</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span><span class="p">])</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1176,7 +1237,8 @@
         <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="n">subtrahend</span><span class="o">.</span><span class="n">get_pyfits</span><span class="p">()</span>
     <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
         <span class="c1"># presume a string is a filename</span>
-        <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
+        <span class="c1"># open the filename in the indicated directory</span>
+        <span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_path</span><span class="o">+</span><span class="s1">&#39;/&#39;</span><span class="o">+</span><span class="n">subtrahend</span><span class="p">)</span> <span class="k">as</span> <span class="n">hdul</span><span class="p">:</span>
             <span class="c1"># make a copy of the hdul from file</span>
             <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">HDUList</span><span class="p">([</span><span class="n">hdu</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">hdu</span> <span class="ow">in</span> <span class="n">hdul</span><span class="p">])</span>
     <span class="k">else</span><span class="p">:</span>
@@ -1184,11 +1246,12 @@
         <span class="n">subtrahend_hdul</span> <span class="o">=</span> <span class="n">subtrahend</span>
 
     <span class="c1"># special, but common use case:</span>
-    <span class="c1"># one frame is open in DS9, and the other is on file</span>
-    <span class="c1"># This requires matching the correct extension from file to the extension open in DS9</span>
+    <span class="c1"># one frame is open in DS9, and the other is on file.</span>
+    <span class="c1"># This requires matching the correct extension from file to the extension open in DS9.</span>
     <span class="c1"># (this is mostly due to DS9 only passing primary HDUs)</span>
 
-    <span class="c1"># handling the cases separately, because they require modifying different variables</span>
+    <span class="c1"># Two sub-cases: subtracting file data from DS9 data, and subtracting DS9 data from file data.</span>
+    <span class="c1"># Handling the sub-cases separately, because they require modifying different variables.</span>
     <span class="c1"># first case: minuend is DS9.</span>
     <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">):</span>
         <span class="c1"># retrieve extension name from DS9</span>
@@ -1214,6 +1277,31 @@
         <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">difference</span><span class="p">:</span>
             <span class="n">display</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;frame new&#39;</span><span class="p">)</span>
             <span class="n">display</span><span class="o">.</span><span class="n">set_np2arr</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">write_to</span><span class="p">:</span>
+        <span class="c1"># if an argument is DS9, throw an expection</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="o">==</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span> <span class="ow">or</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="o">==</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Saving results automatically is disallowed when a source is DS9.&#39;</span><span class="p">)</span>
+
+        <span class="c1"># if one or both arguments are HDUs, throw a warning, and continue</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">minuend</span><span class="p">)</span> <span class="o">==</span> <span class="n">fits</span><span class="o">.</span><span class="n">hdu</span><span class="o">.</span><span class="n">hdulist</span><span class="o">.</span><span class="n">HDUList</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Source file name for the minuend is unknown.&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="n">minuend_source</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">minuend_source</span> <span class="o">=</span> <span class="n">minuend</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">subtrahend</span><span class="p">)</span> <span class="o">==</span> <span class="n">fits</span><span class="o">.</span><span class="n">hdu</span><span class="o">.</span><span class="n">hdulist</span><span class="o">.</span><span class="n">HDUList</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Source file name for the subtrahend is unknown&#39;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="n">subtrahend_source</span> <span class="o">=</span> <span class="s1">&#39;unknown&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">subtrahend_source</span> <span class="o">=</span> <span class="n">subtrahend</span>
+
+        <span class="c1"># generate a comment string that updates the header with the source file names</span>
+        <span class="n">comment_string</span> <span class="o">=</span> <span class="s1">&#39;Result of subtraction of &#39;</span><span class="o">+</span><span class="n">subtrahend_source</span><span class="o">+</span><span class="s1">&#39; from &#39;</span><span class="o">+</span><span class="n">minuend_source</span><span class="o">+</span><span class="s1">&#39;.&#39;</span>
+
+        <span class="c1"># save the result to file</span>
+        <span class="n">_write_difference_to_file</span><span class="p">(</span><span class="n">difference</span><span class="p">,</span> <span class="n">write_to</span><span class="p">,</span> <span class="n">minuend_hdul</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span> <span class="n">comment_string</span><span class="o">=</span><span class="n">comment_string</span><span class="p">)</span>
+
     <span class="k">return</span> <span class="n">difference</span></div>
 
 

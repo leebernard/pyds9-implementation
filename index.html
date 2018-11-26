@@ -422,7 +422,7 @@ per-pixel error on the average.</p>
 
 <dl class="function">
 <dt id="ccd_tools.frame_subtract">
-<code class="descclassname">ccd_tools.</code><code class="descname">frame_subtract</code><span class="sig-paren">(</span><em>minuend</em>, <em>subtrahend</em>, <em>display_in_ds9=False</em>, <em>write_to=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_subtract" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">ccd_tools.</code><code class="descname">frame_subtract</code><span class="sig-paren">(</span><em>minuend</em>, <em>subtrahend</em>, <em>file_path='.'</em>, <em>display_in_ds9=False</em>, <em>write_to=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_subtract" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="docutils">
 <dt>This function subtracts one HDUList from another, and returns the resultant</dt>
 <dd>data.</dd>
@@ -445,14 +445,18 @@ that is loaded in the current frame.</p>
 <dt><strong>subtrahend: HDUList, filename, or DS9 instance</strong></dt>
 <dd><p class="first last">The source of the data to be subtracted.</p>
 </dd>
+<dt><strong>file_path: string, optional</strong></dt>
+<dd><p class="first last">The directory that contains the file names. Default is the current directory.</p>
+</dd>
 <dt><strong>display_in_ds9: bool, optional</strong></dt>
 <dd><p class="first last">If True, the result will be displayed in a Display instance of DS9,
 in a new frame. If the Display instance of DS9 is not already
 running, one will opened.</p>
 </dd>
 <dt><strong>write_to: str</strong></dt>
-<dd><p class="first last">(To be implemented) Name of file to write result to. Will create a
-new file if one does not already exist.</p>
+<dd><p class="first last">Name of file to write result to. It will create a new file if one does not
+already exist. Due to inconsistencies between how python and SAOImage DS9 handles
+header data units, this is disallowed when DS9 is one or both of the sources.</p>
 </dd>
 </dl>
 </td>
@@ -485,6 +489,33 @@ new file if one does not already exist.</p>
 <span class="go">        1.900e+01],</span>
 <span class="go">       [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,</span>
 <span class="go">        2.200e+01]])</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">source_directory</span> <span class="o">=</span> <span class="s1">&#39;/home/lee/Documents&#39;</span>
+<span class="gp">... </span><span class="n">filename1</span> <span class="o">=</span> <span class="s1">&#39;k4m_160531_050920_ori.fits.fz&#39;</span>
+<span class="gp">... </span><span class="n">filename2</span> <span class="o">=</span> <span class="s1">&#39;k4m_161228_132947_dri.fits.fz&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">__</span> <span class="o">=</span> <span class="n">frame_subtract</span><span class="p">(</span><span class="n">filename1</span><span class="p">,</span> <span class="n">filename2</span><span class="p">,</span> <span class="n">file_path</span><span class="o">=</span><span class="n">source_directory</span><span class="p">,</span>
+<span class="gp">... </span>                    <span class="n">display_in_ds9</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">write_to</span><span class="o">=</span><span class="s1">&#39;test_result.fits.fz&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">test_result</span> <span class="o">=</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;/home/lee/Documents/test_result.fits.fz&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">test_result</span>
+<span class="go">[&lt;astropy.io.fits.hdu.image.PrimaryHDU object at 0x7fb4c58dab38&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a914630&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49e90f320&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a9a8be0&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49aa35f28&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494611208&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a91a400&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb496bcaef0&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49494d668&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49490f7f0&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948c6390&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494888c88&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948487b8&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49480bc18&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4947c44a8&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498433908&gt;,</span>
+<span class="go">&lt;astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498199d30&gt;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">test_result</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
 </div>
 </dd></dl>
