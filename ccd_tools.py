@@ -38,7 +38,7 @@ sigma_clipped_frame_average:
     clipped.
 """
 
-__version__ = '0.2'
+__version__ = '0.2b'
 __author__ = 'Lee Bernard'
 # import needed packages
 
@@ -364,6 +364,39 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
                 hdu.header.add_comment(filename)
 
     hdulcopy.writeto(file_path + '/' + writeto_filename)
+
+
+def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_path='.', comment_string=None):
+    """
+    This is a specific method for frame subtraction.
+
+
+    Parameters
+    ----------
+    data_list
+    writeto_filename
+    source_file_list
+    file_path
+    comment_string
+
+    """
+
+    # add a None to the start of the data list, for the primary HDU
+    data_list.insert(0, None)
+    # make generator for modifying the fits file
+    hdul_generator = (hdu for hdu in minuend_hdul)
+
+    for hdu, diff_data in zip(hdul_generator, data_list):
+        hdu.data = diff_data
+        hdu.header.set('OBSTYPE', 'subtracted')
+        # input('press Enter to continue')
+        if type(hdu) is fits.hdu.image.PrimaryHDU:
+            hdu.header.add_comment(str(datetime.date.today()))
+            hdu.header.add_comment('Modified OBSTYPE')
+            if comment_string:
+                hdu.header.add_comment(comment_string)
+
+    minuend_hdul.writeto(file_path + '/' + writeto_filename)
 
 
 def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
@@ -1070,8 +1103,7 @@ def frame_median(filename_list, path='.', writeto_filename=None):
         return _frame_median(image_stack)
 
 
-
-def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
+def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
      data.
@@ -1090,13 +1122,16 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         The source of the data to be subtracted from.
     subtrahend: HDUList, filename, or DS9 instance
         The source of the data to be subtracted.
+    file_path: string, optional
+        The directory that contains the file names. Default is the current directory.
     display_in_ds9: bool, optional
         If True, the result will be displayed in a Display instance of DS9,
         in a new frame. If the Display instance of DS9 is not already
         running, one will opened.
     write_to: str
-        (To be implemented) Name of file to write result to. Will create a
-        new file if one does not already exist.
+        Name of file to write result to. It will create a new file if one does not
+        already exist. Due to inconsistencies between how python and SAOImage DS9 handles
+        header data units, this is disallowed when DS9 is one or both of the sources.
 
     Returns
     -------
@@ -1124,13 +1159,39 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
            [1.300e+01, 1.200e+01, 8.000e+00, ..., 9.000e+00, 1.800e+01,
             2.200e+01]])
 
+    >>> source_directory = '/home/lee/Documents'
+    ... filename1 = 'k4m_160531_050920_ori.fits.fz'
+    ... filename2 = 'k4m_161228_132947_dri.fits.fz'
+    >>> __ = frame_subtract(filename1, filename2, file_path=source_directory,
+    ...                     display_in_ds9=True, write_to='test_result.fits.fz')
+    >>> test_result = fits.open('/home/lee/Documents/test_result.fits.fz')
+    >>> test_result
+    [<astropy.io.fits.hdu.image.PrimaryHDU object at 0x7fb4c58dab38>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a914630>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49e90f320>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a9a8be0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49aa35f28>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494611208>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49a91a400>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb496bcaef0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49494d668>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49490f7f0>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948c6390>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb494888c88>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4948487b8>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb49480bc18>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb4947c44a8>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498433908>,
+    <astropy.io.fits.hdu.compressed.CompImageHDU object at 0x7fb498199d30>]
+    >>> test_result.close()
     """
     if type(minuend) is pyds9.DS9:
         # if argument is a ds9 instance, open the current frame as an hdul
         minuend_hdul = minuend.get_pyfits()
     elif type(minuend) is str:
         # presume a string is a filename
-        with fits.open(minuend) as hdul:
+        # open the filename in the indicated directory
+        with fits.open(file_path+'/'+minuend) as hdul:
             # make a copy of the hdul from file
             minuend_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
     else:
@@ -1142,7 +1203,8 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         subtrahend_hdul = subtrahend.get_pyfits()
     elif type(subtrahend) is str:
         # presume a string is a filename
-        with fits.open(subtrahend) as hdul:
+        # open the filename in the indicated directory
+        with fits.open(file_path+'/'+subtrahend) as hdul:
             # make a copy of the hdul from file
             subtrahend_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
     else:
@@ -1181,6 +1243,31 @@ def frame_subtract(minuend, subtrahend, display_in_ds9=False, write_to=None):
         for array in difference:
             display.set('frame new')
             display.set_np2arr(array)
+
+    if write_to:
+        # if an argument is DS9, throw an expection
+        if type(minuend) == pyds9.DS9 or type(subtrahend) == pyds9.DS9:
+            raise TypeError('Saving results automatically is disallowed when a source is DS9.')
+
+        # if one or both arguments are HDUs, throw a warning, and continue
+        if type(minuend) == fits.hdu.hdulist.HDUList:
+            warnings.warn('Source file name for the minuend is unknown.', category=UserWarning)
+            minuend_source = 'unknown'
+        else:
+            minuend_source = minuend
+
+        if type(subtrahend) == fits.hdu.hdulist.HDUList:
+            warnings.warn('Source file name for the subtrahend is unknown', category=UserWarning)
+            subtrahend_source = 'unknown'
+        else:
+            subtrahend_source = subtrahend
+
+        # generate a comment string that updates the header with the source file names
+        comment_string = 'Result of subtraction of '+subtrahend_source+' from '+minuend_source+'.'
+
+        # save the result to file
+        _write_difference_to_file(difference, write_to, minuend_hdul, file_path=file_path, comment_string=comment_string)
+
     return difference
 
 
