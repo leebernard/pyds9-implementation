@@ -167,14 +167,17 @@ To see the documentation of a particular function, enter print(foo.\_\_doc\_\_)
             
     >>> 
 
-Open a new instance of DS9. 
+Opening DS9 from Python. 
     
-    # make a new, seperate instance of ds9
+    # make a new, seperate instance of the DS9 class, called ds9display
+    # This opens a ds9 window, titled "display, and connects it to python by 
+    # creating an instance of the DS9 class.
     >>> ds9display = pyds9.DS9(target='display', start='-title display')
     >>>
 
 To show the currently available instances of DS9, enter
     
+    # Show currently open ds9 windows
     >>> pyds9.ds9_targets()
     ['DS9:display 7f000001:37337', 'DS9:ds9 7f000001:44345']
 To select a specific instance (say if you opened multiple instances before starting python), enter

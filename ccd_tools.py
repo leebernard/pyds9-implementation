@@ -1106,7 +1106,7 @@ def frame_median(filename_list, path='.', writeto_filename=None):
 def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
-     data.
+    data.
 
     This function expects a primary Header Data Unit and HDU extensions in a
     list. It can handle a single Primary HDU, but in that case expects a list
