@@ -318,7 +318,7 @@ def _copy_hdul(hdul):
     return fits.HDUList(hdu_list)
 
 
-def _write_average_data_to_file(data_list, writeto_filename, source_filename_list=None, file_path='.', comment_string=None):
+def _write_average_data_to_file(data_list, writeto_filename, source_filename_list=None, file_path='.', overwrite=False, comment_string=None):
     """
     This is a specific method for frame averaging.
 
@@ -339,6 +339,7 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
     writeto_filename
     source_filename_list
     file_path
+    overwrite
     comment_string
 
     Returns
@@ -368,10 +369,10 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
             for filename in source_filename_list:
                 hdu.header.add_comment(filename)
 
-    hdulcopy.writeto(file_path + '/' + writeto_filename)
+    hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
 
 
-def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_path='.', comment_string=None):
+def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_path='.', overwrite=False, comment_string=None):
     """
     This is a specific method for frame subtraction.
 
@@ -382,6 +383,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
     writeto_filename
     source_file_list
     file_path
+    overwrite
     comment_string
 
     """
@@ -401,7 +403,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
             if comment_string:
                 hdu.header.add_comment(comment_string)
 
-    minuend_hdul.writeto(file_path + '/' + writeto_filename)
+    minuend_hdul.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
 
 
 def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
@@ -902,7 +904,7 @@ def display_data(imdata, **kwargs):
     plt.show()
 
 
-def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, sigma=3.0, iters=5, **kwargs):
+def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, overwrite=False, sigma=3.0, iters=5, **kwargs):
     """
     This function calculates a sigma clipped average of images stored in fits
     files, by accessing them via a list of filenames.
@@ -944,6 +946,10 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
         extensions, in fits format. If None, does not write to file.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
     sigma: float, optional
         The number of standard deviations to use for both the lower and upper
         clipping limit.
@@ -978,17 +984,17 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
                          ' zero frames, of which this is the first'
 
         _write_average_data_to_file(frame_clipped_average_data, writeto_filename, source_filename_list=filename_list,
-                                    file_path=path, comment_string=comment_string)
+                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
 
         # print('Amount of garbage:')
         # print(gc.collect())
 
         return frame_clipped_average_data, frame_clipped_average_error, frame_included_pixel_tracker
     else:
-        return _sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters,**kwargs)
+        return _sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters, **kwargs)
 
 
-def frame_average(filename_list, path='.', writeto_filename=None):
+def frame_average(filename_list, path='.', writeto_filename=None, overwrite=False):
     """
     This function returns an average and error estimate of images stored in fits files, by
     accessing them via a list of filenames.
@@ -1017,6 +1023,10 @@ def frame_average(filename_list, path='.', writeto_filename=None):
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
         extensions, in fits format. If None, does not write to file.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
 
     Returns
     -------
@@ -1037,13 +1047,13 @@ def frame_average(filename_list, path='.', writeto_filename=None):
                          ' zero frames, of which this is the first'
 
         _write_average_data_to_file(frame_average_data, writeto_filename, source_filename_list=filename_list,
-                                    file_path=path, comment_string=comment_string)
+                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
         return frame_average_data, frame_average_error
     else:
         return _frame_mean(image_stack)
 
 
-def frame_median(filename_list, path='.', writeto_filename=None):
+def frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
     """
     This function returns the median of several frames.
 
@@ -1071,6 +1081,10 @@ def frame_median(filename_list, path='.', writeto_filename=None):
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
         extensions, in fits format. If None, does not write to file.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
 
     Returns
     -------
@@ -1091,13 +1105,13 @@ def frame_median(filename_list, path='.', writeto_filename=None):
                          'zero frames, of which this is the first'
 
         _write_average_data_to_file(frame_median_data, writeto_filename, source_filename_list=filename_list,
-                                    file_path=path, comment_string=comment_string)
+                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
         return frame_median_data, frame_median_error
     else:
         return _frame_median(image_stack)
 
 
-def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, write_to=None):
+def frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
      data.
@@ -1118,6 +1132,10 @@ def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, wri
         The source of the data to be subtracted.
     file_path: string, optional
         The directory that contains the file names. Default is the current directory.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
     display_in_ds9: bool, optional
         If True, the result will be displayed in a Display instance of DS9,
         in a new frame. If the Display instance of DS9 is not already
@@ -1259,7 +1277,7 @@ def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, wri
         comment_string = 'Result of subtraction of '+subtrahend_source+' from '+minuend_source+'.'
 
         # save the result to file
-        _write_difference_to_file(difference, write_to, minuend_hdul, file_path=file_path, comment_string=comment_string)
+        _write_difference_to_file(difference, write_to, minuend_hdul, file_path=file_path, overwrite=overwrite, comment_string=comment_string)
 
     return difference
 
