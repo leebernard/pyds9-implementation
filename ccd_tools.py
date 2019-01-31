@@ -419,7 +419,8 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     Parameters
     ----------
     ds9: DS9 object, optional
-        optional parameter to specify a DS9 target
+        Parameter to specify a DS9 target. If a target is not specified, it
+        will attempt to connect automatically.
     get_data: bool, optional
         If True, does not retrieve data from DS9. This to reduce the resource
         requirements if data is being handled separately.
@@ -515,10 +516,11 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
 
             print(str_list.pop(0))
     # if the loop runs through the whole string without finding a region, print a message
-    except IndexError:
-        message = 'No valid region found. Please select a valid box region.'
-        print(message)
-        raise
+    except IndexError as err:
+        message = 'No valid region found.\nThis is due to either no region being selected, the region being a circle,\n' \
+                  'the wrong instance of DS9 being queried, or something else altogether.\n' \
+                  'Please make sure you have selected a box region.'
+        raise RuntimeError(message) from err
 
     print('Region definition: ', str_list)
     # parse the meta data string

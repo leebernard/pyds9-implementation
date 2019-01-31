@@ -81,7 +81,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
 def frame_subtract(minuend, subtrahend, file_path='.', display_in_ds9=False, write_to=None):
     """
     This function subtracts one HDUList from another, and returns the resultant
-     data.
+    data.
 
     This function expects a primary Header Data Unit and HDU extensions in a
     list. It can handle a single Primary HDU, but in that case expects a list
@@ -266,9 +266,11 @@ with fits.open(filename1) as minuend_hdul, fits.open(filename2) as subtrahend_hd
 
 frame_subtract(filename1, filename2, file_path=source_directory, display_in_ds9=True, write_to='test_result.fits.fz')
 
+frame_subtract(filename1, filename2, file_path=source_directory, write_to='test_result.fits.fz', overwrite=True)
+
 test_result = fits.open('/home/lee/Documents/test_result.fits.fz')
 test_result
 test_result.close()
 
 __ = frame_subtract(filename1, filename2, file_path=source_directory,
-                    display_in_ds9 = True, write_to = 'test_result.fits.fz')
+                    display_in_ds9=True, write_to='test_result.fits.fz')
