@@ -10,32 +10,32 @@ wrapper.
 
 Functions
 ---------
-get_ds9_regions:
+get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     Retrieves a selected region from DS9, and returns it as a Region instance
-make_source_mask:
+make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     Generates and returns a source mask from image data.
-image_stats:
+image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
     Returns stats on image data.
-bias_from_ds9:
+bias_from_ds9(ds9=None, bias_sec=None):
     Returns the data in the bias section from an image loaded in DS9.
-sky_subtract:
+sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     Returns the sky background subtracted image data
-bias_subtract:
+bias_subtract(hdu, bias_sec=None):
     Returns the bias subtracted data
-display_data:
+display_data(imdata, **kwargs):
     A wrapper for displaying image data using MatPlotLib
-get_filenames:
-    A function that retrieves file names from a particular directory.
-frame_subtract:
-    Subtracts image data frame by frame, either from file or from DS9
-frame_average:
-    Takes the average of a set of image data, from file.
-frame_median:
-    Takes the per-pixel median of a set of image data, from file. Intended
-    to be a more robust version of frame_average.
-sigma_clipped_frame_average:
+sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, overwrite=False, sigma=3.0, iters=5, **kwargs):
     Takes the average of a set of image data from file, with outliers
     clipped.
+frame_average(filename_list, path='.', writeto_filename=None, overwrite=False):
+    Takes the average of a set of image data, from file.
+frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
+    Takes the per-pixel median of a set of image data, from file. Intended
+    to be a more robust version of frame_average.
+frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_in_ds9=False, write_to=None):
+    Subtracts image data frame by frame, either from file or from DS9
+get_filenames(path='.', extension=None, pattern=None, identifiers=None, include_path=False):
+    A function that retrieves file names from a particular directory.
 """
 
 __version__ = '0.2b'
