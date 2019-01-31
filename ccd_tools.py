@@ -411,6 +411,9 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
     Gets the first single valid box region selected in ds9, and returns it as
     a Region object.
 
+    This function will attempt to contact a running instance of DS9, and
+    retrieve data from a selected region. If an instance of DS9 is not provided
+    as an argument, it will attempt contanct the DS9 application automatically.
     This function requires that the region be selected and defined as a box.
     (see DS9) It stores the region data and the bias subtracted data in a
     region instance, as well as the region definition, source file, and
@@ -513,8 +516,8 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
             # if re.match('# tile', str_list[0]):
             #     print('Tile mode detected')
             #     tiled = True
-
-            print(str_list.pop(0))
+            popped_str = str_list.pop(0)
+            print(popped_str)
     # if the loop runs through the whole string without finding a region, print a message
     except IndexError as err:
         message = 'No valid region found.\nThis is due to either no region being selected, the region being a circle,\n' \
