@@ -406,7 +406,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
     minuend_hdul.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
 
 
-def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
+def get_ds9_region(ds9=None, bias_sec=None, get_data=True, verbose=False):
     """
     Gets the first single valid box region selected in ds9, and returns it as
     a Region object.
@@ -433,6 +433,10 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
         numbers can be ints, floats, or strings that represent ints. If a float
         is given, it will be truncated towards zero. If None, the bias section
         will be retrieved from the header.
+    verbose: bool, optional
+        If True, data about the region is printed out. Also, more traceback is
+        provided on the error associated with bad region selection. See the
+        Raises section below.
 
     Returns
     -------
@@ -440,9 +444,13 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
 
     Raises
     ------
-    IndexError
+    RunTimeError
         If a region has not been selected in DS9, or the region selected is not
-         a box.
+         a box. This error is raised from a ValueError, so it could possibly
+         hide other errors. Since this error is expected to be common, traceback
+         on this error is partially suppressed by default. Set verbose to True
+         if you want to see the full traceback.
+         
     Examples
     --------
     >>> from ccd_tools import *
@@ -494,9 +502,9 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
         try:
             ds9 = pyds9.DS9()
         except ValueError:
-            print('Specify a target DS9() instance to retrieve the region from. '
-                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
-            raise
+            raise RuntimeError('Unable to link to DS9. '
+                               'Try Specifying a target DS9() instance to retrieve the region from. '
+                               'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)') from ValueError
 
     # set the region format to ds9 default, and coordinate system to image. This ensures the format is standardized.
     # image format is required to properly index the data array.
@@ -517,15 +525,20 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
             #     print('Tile mode detected')
             #     tiled = True
             popped_str = str_list.pop(0)
-            print(popped_str)
+            if verbose:
+                print(popped_str)
     # if the loop runs through the whole string without finding a region, print a message
     except IndexError as err:
         message = 'No valid region found.\nThis is due to either no region being selected, the region being a circle,\n' \
                   'the wrong instance of DS9 being queried, or something else altogether.\n' \
                   'Please make sure you have selected a box region.'
-        raise RuntimeError(message) from err
+        if verbose:
+            raise RuntimeError(message) from err
+        else:
+            raise RuntimeError(message) from None
 
-    print('Region definition: ', str_list)
+    if verbose:
+        print('Region definition: ', str_list)
     # parse the meta data string
     # pattern finds all sequences of digits that may or may not contain a period
     pattern = re.compile('\d+\.?\d*')
@@ -580,22 +593,24 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True):
         else:
             # bias dependent operations
             bias_mean, bias_median, bias_std = sigma_clipped_stats(bias_data, sigma=3.0, iters=5)
-            print('----------------')
-            print('Bias statistics:')
-            print(f'Mean: {bias_mean:.2f}')
-            print(f'Median: {bias_median:.2f}')
-            print(f'Std: {bias_std:.2f}')
+            if verbose:
+                print('----------------')
+                print('Bias statistics:')
+                print(f'Mean: {bias_mean:.2f}')
+                print(f'Median: {bias_median:.2f}')
+                print(f'Std: {bias_std:.2f}')
             # explicitly use the bias mean as the value to subtract
             bias = bias_mean
             # store the bias stats
             region.bias_stats = bias_mean, bias_median, bias_std
 
-            # display the bias stats after subtraction
-            test_mean, test_median, test_std = sigma_clipped_stats(bias_data - bias, sigma=3.0, iters=5)
-            print('Bias statistics after bias subtraction: ')
-            print(f'Mean: {test_mean:.2f}')
-            print(f'Median: {test_median:.2f}')
-            print(f'Std: {test_std:.2f}')
+            if verbose:
+                # display the bias stats after subtraction
+                test_mean, test_median, test_std = sigma_clipped_stats(bias_data - bias, sigma=3.0, iters=5)
+                print('Bias statistics after bias subtraction: ')
+                print(f'Mean: {test_mean:.2f}')
+                print(f'Median: {test_median:.2f}')
+                print(f'Std: {test_std:.2f}')
 
             # perform the bias subtraction
             bias_sub_frame = frame_data - bias
@@ -739,9 +754,9 @@ def bias_from_ds9(ds9=None, bias_sec=None):
         try:
             ds9 = pyds9.DS9()
         except ValueError:
-            print('Specify a target DS9() instance to retrieve the bias from. '
-                  'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)')
-            raise
+            raise RuntimeError('Unable to link to DS9. '
+                               'Try Specifying a target DS9() instance to retrieve the region from. '
+                               'e.g:\n  d = pyds9.DS9(\'7f000101:43123\')\n  r = get_ds9_region(ds9=d)') from ValueError
     hdulist = ds9.get_pyfits()
 
     # hdulist.info()
@@ -1254,6 +1269,7 @@ def frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_
     # calculate difference
     difference = _frame_subtract(minuend_hdul, subtrahend_hdul)
 
+    # now that the subtraction has been performed, do something with it
     if display_in_ds9:
         display = pyds9.DS9(target='Display', start='-title Display')
         for array in difference:
@@ -1368,7 +1384,7 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
                 storage_list.extend([filename for filename in filename_list if str(ident) in filename])
 
         except TypeError:
-            print(identifiers, 'is not iterable')
+            print(identifiers, 'is not a list, tuple, or otherwise iterable')
         else:
             filename_list = storage_list
 
