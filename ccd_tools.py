@@ -450,7 +450,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True, verbose=False):
          hide other errors. Since this error is expected to be common, traceback
          on this error is partially suppressed by default. Set verbose to True
          if you want to see the full traceback.
-         
+
     Examples
     --------
     >>> from ccd_tools import *
@@ -674,7 +674,7 @@ def make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     return mask
 
 
-def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
+def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, verbose=False, **kwargs):
     """
     Calculates statistics on the background of the image data given.
 
@@ -694,6 +694,9 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwarg
     sigma_clip: bool, optional
         If True, sigma clipped statistics will be returned using the function
         sigma_clipped_stats from astropy.stats
+    verbose: bool, optional
+        If True, the minimum and maximum pixel values, as well as the mean,
+        median, and standard deviation are all printed out.
     kwargs: dict, optional
         Keyword arguments to be passed to sigma_clipped_stats
 
@@ -719,15 +722,16 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwarg
     else:
         mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
-    print(f'Min pixel value: {np.min(masked_data):.2f}')
-    print(f'Max pixel value: {np.max(masked_data):.2f}')
-    print(f'Mean: {mean:.2f}')
-    print(f'Median: {median:.2f}')
-    print(f'Std: {std:.2f}')
+    if verbose:
+        print(f'Min pixel value: {np.min(masked_data):.2f}')
+        print(f'Max pixel value: {np.max(masked_data):.2f}')
+        print(f'Mean: {mean:.2f}')
+        print(f'Median: {median:.2f}')
+        print(f'Std: {std:.2f}')
     return mean, median, std
 
 
-def bias_from_ds9(ds9=None, bias_sec=None):
+def bias_from_ds9(ds9=None, bias_sec=None, verbose=False):
     """
     This function retrieves the bias section from a fits file loaded in DS9.
 
@@ -742,7 +746,10 @@ def bias_from_ds9(ds9=None, bias_sec=None):
         numbers can be ints, floats, or strings that represent ints. If a float
         is given, it will be truncated towards zero. If None, the bias section
         will be retrieved from the header.
-
+    verbose: bool, optional
+        If True, the source file name and the bias section definition are
+        printed out. Since the bias section is pulled from the header
+        called BIASSEC, this bascially prints that portion of the header.
     Returns
     -------
     bias_data: ndarray
@@ -767,9 +774,10 @@ def bias_from_ds9(ds9=None, bias_sec=None):
         # extract the bias definition
         bias_str = hdu.header['BIASSEC']
 
-        print('Bias from ', ds9.get('file'))
-        print('Bias Section is ' + bias_str)
-        # print(type(bias_str))
+        if verbose:
+            print('Bias from ', ds9.get('file'))
+            print('Bias Section is ' + bias_str)
+            # print(type(bias_str))
         # slice the string, for converting to int
         pattern = re.compile('\d+')  # pattern for all decimal digits
         # print(pattern.findall(bias_str))
