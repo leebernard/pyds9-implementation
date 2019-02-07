@@ -798,7 +798,7 @@ def bias_from_ds9(ds9=None, bias_sec=None, verbose=False):
     return bias_data
 
 
-def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
+def sky_subtract(im_data, mask=None, mask_sources=True, verbose=False, **kwargs):
     """
     Returns a background (sky) subtracted copy of image data.
 
@@ -818,6 +818,10 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
         If True, a source mask is automatically generated using photutils. This
          option allows this feature to be disabled, in case photutils is not
          available, or not working correctly.
+    verbose: bool, optional
+        A flag for diagnosing issues. If True, the max pixel, min pixel, mean,
+        median, and standard deviation of the background will be printed. After
+        the subtraction, those values will be recalculated and printed again.
     kwargs: dict, optional
         Keyword arguments to be passed to image_stats
 
@@ -835,14 +839,16 @@ def sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
 
     # calculate bias using mean
     # clipped stats are used, just in case
-    print('----------------------')
-    print('Background statistics:')
-    mean, median, std = image_stats(im_data, mask=mask, mask_sources=mask_sources, **kwargs)
+    if verbose:
+        print('----------------------')
+        print('Background statistics:')
+    mean, median, std = image_stats(im_data, mask=mask, mask_sources=mask_sources, verbose=verbose, **kwargs)
 
     # subtract the mean from the image data
     output_im = im_data - mean
-    print('Background stats after subtraction:')
-    image_stats(output_im, mask=mask, mask_sources=mask_sources, **kwargs)
+    if verbose:
+        print('Background stats after subtraction:')
+        image_stats(output_im, mask=mask, mask_sources=mask_sources, verbose=verbose **kwargs)
 
     # package the statistics for return
     stats = mean, median, std
