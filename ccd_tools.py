@@ -731,7 +731,7 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, verbose
     return mean, median, std
 
 
-def bias_from_ds9(ds9=None, bias_sec=None, verbose=False):
+def bias_from_ds9(ds9=None, bias_keyword='BIASSEC', bias_sec=None, verbose=False):
     """
     This function retrieves the bias section from a fits file loaded in DS9.
 
@@ -740,6 +740,8 @@ def bias_from_ds9(ds9=None, bias_sec=None, verbose=False):
     ds9: DS9() instance, optional
         Target DS9 instance to retrieve the data from. If not specified, this
         will be acquired automatcially.
+    bias_keyword: string, optional
+        The header keyword associated with the bias section data.
     bias_sec: array-like, optional
         This must be a list, tuple, or array of four numbers that define the
         bias section of the image, in the form (xmin, xmax, ymin, ymax). The
@@ -767,22 +769,22 @@ def bias_from_ds9(ds9=None, bias_sec=None, verbose=False):
     hdulist = ds9.get_pyfits()
 
     # hdulist.info()
-    # extract header data unit from list
+    # extract header data unit from list.
+    # This has to be done because the hdu is returned as a list, for whatever reason.
     hdu = hdulist[0]
 
+    # check if parameters give the bias section, if not, automatically get it
     if bias_sec is None:
-        # extract the bias definition
-        bias_str = hdu.header['BIASSEC']
-
+        # pull the bias section information from the header readout.
+        bias_str = hdu.header[bias_keyword]
+        pattern = re.compile(r'\d+')  # pattern for all decimal digits
         if verbose:
             print('Bias from ', ds9.get('file'))
-            print('Bias Section is ' + bias_str)
-            # print(type(bias_str))
-        # slice the string, for converting to int
-        pattern = re.compile('\d+')  # pattern for all decimal digits
-        # print(pattern.findall(bias_str))
+            print('Value stored under', bias_keyword, 'is', bias_str)
+            print('Data type is:', type(bias_str))
+            print('Interpretation as bias section definition:', pattern.findall(bias_str))
 
-        # hold the result in an object
+        # slice the string, for converting to int, and hold the result in an object
         bias_sec = pattern.findall(bias_str)
 
     # typecast the indices to ints
