@@ -856,7 +856,7 @@ def sky_subtract(im_data, mask=None, mask_sources=True, verbose=False, **kwargs)
     return output_im, stats
 
 
-def bias_subtract(hdu, bias_sec=None):  # pass header data unit.  REMEBER, this is pass-by-reference
+def bias_subtract(hdu, bias_sec=None, verbose=False):  # pass header data unit.  REMEBER, this is pass-by-reference
     """
     Returns the bias subtracted data from a header data unit.
 
@@ -873,6 +873,9 @@ def bias_subtract(hdu, bias_sec=None):  # pass header data unit.  REMEBER, this 
         bias section of the image. The numbers can be ints, floats, or strings
         that represent ints. If a float is given, it will be truncated
         towards zero.
+    verbose: bool, optional
+        If true, the mean, median, and standerd deviation of the bias section
+        will be printed out.
 
     Returns
     -------
@@ -909,11 +912,13 @@ def bias_subtract(hdu, bias_sec=None):  # pass header data unit.  REMEBER, this 
 
     bias_data = im_data[ymin:ymax, xmin:xmax]
 
-    # Calculate the bias, using clipped statistics in case of cosmic ray events, and print the 		#results
+    # Calculate the bias, using clipped statistics in case of cosmic ray events, and print the
+    # results
     bias_mean, bias_median, bias_std = sigma_clipped_stats(bias_data, sigma=3.0, iters=5)
-    print('Bias mean: ' + str(bias_mean))
-    print('Bias median: ' + str(bias_median))
-    print('Bias standerd deviation: ' + str(bias_std))
+    if verbose:
+        print('Bias mean: ' + str(bias_mean))
+        print('Bias median: ' + str(bias_median))
+        print('Bias standerd deviation: ' + str(bias_std))
 
     # calculate and print the bias area statistics, for reference.  DISABLED
     # print('Bias area after subtraction \n Mean: ')
