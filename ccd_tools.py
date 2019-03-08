@@ -856,7 +856,7 @@ def sky_subtract(im_data, mask=None, mask_sources=True, verbose=False, **kwargs)
     return output_im, stats
 
 
-def bias_subtract(hdu, bias_sec=None, verbose=False):  # pass header data unit.  REMEBER, this is pass-by-reference
+def bias_subtract(hdu, bias_keyword='BIASSEC', bias_sec=None, verbose=False):
     """
     Returns the bias subtracted data from a header data unit.
 
@@ -867,15 +867,19 @@ def bias_subtract(hdu, bias_sec=None, verbose=False):  # pass header data unit. 
     Parameters
     ----------
     hdu : fits header data unit
-        Image data stored in a fits file
+        A fits file header data unit that has been opened using astropy.io.fits.
+    bias_keyword: string, optional
+        The header keyword associated with the bias section data.
     bias_sec: array-like, optional
-        This must be a list, tuple, or array of four numbers, that define the
+        This must be a list, tuple, or array of four numbers that define the
         bias section of the image. The numbers can be ints, floats, or strings
         that represent ints. If a float is given, it will be truncated
         towards zero.
     verbose: bool, optional
-        If true, the mean, median, and standerd deviation of the bias section
-        will be printed out.
+        An optional mode for diagnosing issues. If true, the mean, median, and
+        standard deviation of the bias section will be printed out. The value
+        pulled from the header keyword will also be printed. Default
+        value is false.
 
     Returns
     -------
@@ -890,14 +894,14 @@ def bias_subtract(hdu, bias_sec=None, verbose=False):  # pass header data unit. 
     # check if parameters give the bias section, if not, automatically get it
     if bias_sec is None:
         # pull the bias section information from the header readout.
-        bias_str = hdu.header['BIASSEC']
-        print('Bias Section is ' + bias_str)
-        # print(type(bias_str))
-        # slice the string, for converting to int
-        pattern = re.compile('\d+')  # pattern for all decimal digits
-        print(pattern.findall(bias_str))
+        bias_str = hdu.header[bias_keyword]
+        pattern = re.compile(r'\d+')  # pattern for all decimal digits
+        if verbose:
+            print('Value stored under', bias_keyword, 'is', bias_str)
+            print('Data type is:', type(bias_str))
+            print('Interpretation as bias section definition:', pattern.findall(bias_str))
 
-        # hold the result in an object
+        # slice the string, for converting to int, and hold the result in an object
         bias_sec = pattern.findall(bias_str)
 
     # Bias section data
