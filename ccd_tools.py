@@ -990,7 +990,9 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
         Defaults to the current working directory.
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
-        extensions, in fits format. If None, does not write to file.
+        extensions, in fits format. If None, does not write to file. The file
+        will be saved to the same location as the source data, that is, the
+        location specified by \'path\'.
     overwrite: bool, optional
         If True, allows the output file to be overwritten if it already exists.
         Raises an OSError if False and the output file exists. Default is
@@ -1067,7 +1069,9 @@ def frame_average(filename_list, path='.', writeto_filename=None, overwrite=Fals
         Defaults to the current working directory.
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
-        extensions, in fits format. If None, does not write to file.
+        extensions, in fits format. If None, does not write to file. The file
+        will be saved to the same location as the source data, that is, the
+        location specified by \'path\'.
     overwrite: bool, optional
         If True, allows the output file to be overwritten if it already exists.
         Raises an OSError if False and the output file exists. Default is
@@ -1125,7 +1129,9 @@ def frame_median(filename_list, path='.', writeto_filename=None, overwrite=False
         to the current working directory.
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
-        extensions, in fits format. If None, does not write to file.
+        extensions, in fits format. If None, does not write to file. The file
+        will be saved to the same location as the source data, that is, the
+        location specified by \'path\'.
     overwrite: bool, optional
         If True, allows the output file to be overwritten if it already exists.
         Raises an OSError if False and the output file exists. Default is
@@ -1187,8 +1193,10 @@ def frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_
         running, one will opened.
     write_to: str
         Name of file to write result to. It will create a new file if one does not
-        already exist. Due to inconsistencies between how python and SAOImage DS9 handles
-        header data units, this is disallowed when DS9 is one or both of the sources.
+        already exist. Due to inconsistencies between how python and SAOImage DS9
+        handles header data units, this is disallowed when DS9 is one or both of
+        the sources. The file will be saved to the same location as the source
+        data, that is, the location specified by \'path\'.
 
     Returns
     -------
