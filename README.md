@@ -4,7 +4,7 @@ The module pyds9 is a python interface for using SAOImage DS9. This is a wrapper
 pyds9, for use in the UCO Lick CCD lab. The main module is ccd_tools. The primary purpose of this 
 module is for easy extraction of segments of image data from DS9 into a python environment, by 
 detecting regions that have been selected by the user in DS9.  It also provides basic set of tools 
-for statistical analysis. These tools will be expanded on in the future.
+for statistical analysis. This is all very much a work in progress.
 
 Some basic tools for statistical analysis have been added. There are now functions for finding 
 average, median, and sigma clipped average frames. The frame average is found by stacking the data
@@ -46,7 +46,7 @@ and the other on disk, the subtraction function will automatically acquire the a
 extension. If both frames being subtracted are open in DS9, they are simply subtracted. If both 
 frames are on disk, the subtraction routine will iterate through all HDU extensions. 
 
-In the future, a way of writing this difference to file should be added
+The result of the frame sub
 
 See http://hea-www.harvard.edu/RD/pyds9/ for more information on pyds9, including a link to source 
 files on github.
@@ -134,6 +134,8 @@ well, if a bias region is available.
     Mean: 2351.64
     Median: 2165.11
     Std: 1930.76
+#### Notes on Using the Region Class
+In the above example, the data from ds9 is stored in an instance of the region
 
 To see the documentation of a particular function, enter print(foo.\_\_doc\_\_)
 
