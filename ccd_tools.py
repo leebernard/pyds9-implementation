@@ -38,7 +38,7 @@ get_filenames(path='.', extension=None, pattern=None, identifiers=None, include_
     A function that retrieves file names from a particular directory.
 """
 
-__version__ = '0.2b'
+__version__ = '0.3'
 __author__ = 'Lee Bernard'
 # import needed packages
 

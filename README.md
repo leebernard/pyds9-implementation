@@ -134,8 +134,6 @@ well, if a bias region is available.
     Mean: 2351.64
     Median: 2165.11
     Std: 1930.76
-#### Notes on Using the Region Class
-In the above example, the data from ds9 is stored in an instance of the region
 
 To see the documentation of a particular function, enter print(foo.\_\_doc\_\_)
 
@@ -188,6 +186,17 @@ Alternately, you can specify the XPA address. This is functionally the same as t
     >>> ds9 = pyds9.DS9(target='7f000001:37337')
     >>> 
     
+#### Notes on Using the Region Class
+If you are coming from a procedural language like C, you are probably not familiar with classes. If 
+you know a language like C++, you may be familiar with classes and objects, but there are some 
+idiosyncrasies with how classes are implemented in Python that are good to know about. The easiest 
+way to understand objects is to work through a use example. Therefore, this section will give a 
+brief run-down of how the region class operates. 
+
+In the above example, the data from SAOImage DS9 is stored in an instance of the region class. 
+Instances of a class, referred to as objects, are unique in that changes to one instance will not 
+affect any other instances. In this case the object was defined as 'exampleregion'. 
+
 #### Issues
 Sometimes, if multiple instances of DS9 are closed, the XPA name server seems to close. If it shows 
 an error similar to this
