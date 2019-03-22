@@ -4,7 +4,7 @@ The module pyds9 is a python interface for using SAOImage DS9. This is a wrapper
 pyds9, for use in the UCO Lick CCD lab. The main module is ccd_tools. The primary purpose of this 
 module is for easy extraction of segments of image data from DS9 into a python environment, by 
 detecting regions that have been selected by the user in DS9.  It also provides basic set of tools 
-for statistical analysis. These tools will be expanded on in the future.
+for statistical analysis. This is all very much a work in progress.
 
 Some basic tools for statistical analysis have been added. There are now functions for finding 
 average, median, and sigma clipped average frames. The frame average is found by stacking the data
@@ -46,7 +46,7 @@ and the other on disk, the subtraction function will automatically acquire the a
 extension. If both frames being subtracted are open in DS9, they are simply subtracted. If both 
 frames are on disk, the subtraction routine will iterate through all HDU extensions. 
 
-In the future, a way of writing this difference to file should be added
+The result of the frame sub
 
 See http://hea-www.harvard.edu/RD/pyds9/ for more information on pyds9, including a link to source 
 files on github.
@@ -189,6 +189,17 @@ Alternately, you can specify the XPA address. This is functionally the same as t
     >>> ds9 = pyds9.DS9(target='7f000001:37337')
     >>> 
     
+#### Notes on Using the Region Class
+If you are coming from a procedural language like C, you are probably not familiar with classes. If 
+you know a language like C++, you may be familiar with classes and objects, but there are some 
+idiosyncrasies with how classes are implemented in Python that are good to know about. The easiest 
+way to understand objects is to work through a use example. Therefore, this section will give a 
+brief run-down of how the region class operates. 
+
+In the above example, the data from SAOImage DS9 is stored in an instance of the region class. 
+Instances of a class, referred to as objects, are unique in that changes to one instance will not 
+affect any other instances. In this case the object was defined as 'exampleregion'. 
+
 #### Issues
 Sometimes, if multiple instances of DS9 are closed, the XPA name server seems to close. If it shows 
 an error similar to this
