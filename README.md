@@ -193,9 +193,54 @@ idiosyncrasies with how classes are implemented in Python that are good to know 
 way to understand objects is to work through a use example. Therefore, this section will give a 
 brief run-down of how the region class operates. 
 
-In the above example, the data from SAOImage DS9 is stored in an instance of the region class. 
+In the above example, the data from SAOImage DS9 is stored in an instance of the region class. A 
+class is a structure for convenient handling of related data and functions. In this case, the region 
+class is a wrapper for the various types of data associated with a SAOImage DS9 region, such as the 
+source file name, the location of the region in the frame, and of course the pixel values. More 
+information about the region class can be found in the documentation.
+
 Instances of a class, referred to as objects, are unique in that changes to one instance will not 
 affect any other instances. In this case the object was defined as 'exampleregion'. 
+
+    >>> from ccd_tools import *
+    >>> exampleregion = get_ds9_region()
+    /home/lee/PycharmProjects/pyds9-implementation/ccd_tools.py:592: UserWarning: "Keyword 'BIASSEC' not found." Unable to perform bias subtraction.
+      warnings.warn(message, category=UserWarning)
+    >>> 
+
+The pixel value data from the region selected in SAOImage DS9 is stored in exampleregion, under the 
+.data attribute. This data can be accessed by calling the data attribute:
+
+    >>> exampleregion.data
+    array([[2663, 2657, 2658, ..., 2631, 2661, 2660],
+           [2643, 2655, 2635, ..., 2625, 2637, 2637],
+           [2619, 2648, 2622, ..., 2631, 2642, 2630],
+           ...,
+           [2653, 2643, 2633, ..., 2651, 2625, 2626],
+           [2633, 2661, 2626, ..., 2631, 2660, 2614],
+           [2628, 2635, 2665, ..., 2631, 2661, 2633]], dtype=uint16)
+
+The get_ds9_region() fuction will also attempt to provide bias-subtracted data. In this case, 
+get_ds9_region() was unable to find the bias section of the frame containing the region, because 
+the default keyword was not found in the header. If this data had been found, it would of been 
+stored under .bias_sub.
+
+    >>> exampleregion.bias_sub
+    >>> print(exampleregion.bias_sub)
+    None
+
+As can be seen, built in attributes have a default value of None. 
+
+Python has a very flexible implementation of objects. Unlike in C++, all attributes can be modified 
+at any time by the user. This also means that the user can add new attributes at will. 
+
+    >>> exampleregion.data = 'oops'
+    >>> print(exampleregion.data)
+    oops
+    >>> # creating a new data attribute, containing a string
+    ... exampleregion.note_to_self = 'The data attribute was accidentally overwritten'
+    
+
 
 #### Issues
 Sometimes, if multiple instances of DS9 are closed, the XPA name server seems to close. If it shows 

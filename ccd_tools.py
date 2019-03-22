@@ -406,7 +406,7 @@ def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_pa
     minuend_hdul.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
 
 
-def get_ds9_region(ds9=None, bias_sec=None, get_data=True, verbose=False):
+def get_ds9_region(ds9=None, bias_sec=None, bias_keyword='BIASSEC', get_data=True, verbose=False):
     """
     Gets the first single valid box region selected in ds9, and returns it as
     a Region object.
@@ -433,6 +433,8 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True, verbose=False):
         numbers can be ints, floats, or strings that represent ints. If a float
         is given, it will be truncated towards zero. If None, the bias section
         will be retrieved from the header.
+    bias_keyword: string, optional
+        The header keyword associated with the bias section data.
     verbose: bool, optional
         If True, data about the region is printed out. Also, more traceback is
         provided on the error associated with bad region selection. See the
@@ -586,7 +588,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True, verbose=False):
 
         # retrieve bias section, and calculate stats
         try:
-            bias_data = bias_from_ds9(ds9, bias_sec=bias_sec)
+            bias_data = bias_from_ds9(ds9, bias_sec=bias_sec, bias_keyword=bias_keyword)
         except KeyError as err:
             message = str(err) + ' Unable to perform bias subtraction.'
             warnings.warn(message, category=UserWarning)
