@@ -586,7 +586,7 @@ def get_ds9_region(ds9=None, bias_sec=None, get_data=True, verbose=False):
 
         # retrieve bias section, and calculate stats
         try:
-            bias_data = bias_from_ds9(ds9, bias_sec)
+            bias_data = bias_from_ds9(ds9, bias_sec=bias_sec)
         except KeyError as err:
             message = str(err) + ' Unable to perform bias subtraction.'
             warnings.warn(message, category=UserWarning)
