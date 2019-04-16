@@ -187,11 +187,11 @@ Alternately, you can specify the XPA address. This is functionally the same as t
     >>> 
     
 #### Notes on Using the Region Class
-If you are coming from a procedural language like C, you are probably not familiar with classes. If 
-you know a language like C++, you may be familiar with classes and objects, but there are some 
-idiosyncrasies with how classes are implemented in Python that are good to know about. The easiest 
-way to understand objects is to work through a use example. Therefore, this section will give a 
-brief run-down of how the region class operates. 
+This section will give a brief run-down of how the region class operates. If you are coming from a 
+procedural language like C, you are probably not familiar with classes. If you know a language like 
+C++, you may be familiar with classes and objects, but there are some idiosyncrasies in Python with 
+how classes are implemented that are good to know about. Hopefully, this section will clarify how 
+classes and objects work in Python.
 
 In the above example, the data from SAOImage DS9 is stored in an instance of the region class. A 
 class is a structure for convenient handling of related data and functions. In this case, the region 
@@ -229,7 +229,7 @@ stored under .bias_sub.
     >>> print(exampleregion.bias_sub)
     None
 
-As can be seen, built in attributes have a default value of None. 
+As can be seen, built in attributes have a default value, in this case None. 
 
 Python has a very flexible implementation of objects. Unlike in C++, all attributes can be modified 
 at any time by the user. This also means that the user can add new attributes at will. 
