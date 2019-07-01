@@ -241,21 +241,23 @@ def _frame_subtract(minuend_hdul, subtrahend_hdul):
 
 
 def _frame_mean(image_stack):
-    # transpose the lists of data, then take the mean
-    frame_mean = [np.mean(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+    # transpose the lists of data, then take the mean. np.squeeze removes the leftover axis
+    # returns a list to account for multiple frames
+    frame_mean_list = [np.squeeze(np.mean(np.stack([hdu_data for hdu_data in data_tuple]), axis=0)) for data_tuple in zip(*image_stack)]
 
     # transpose the lists of data, than take the std deviation and calculate error.
     # the error is calculated as std_dev/sqrt(n)
-    pixel_error = [np.std(np.stack([hdu_data for hdu_data in data_tuple]) / np.sqrt(len(image_stack)), axis=0) for
+    pixel_error_list = [np.std(np.stack([hdu_data for hdu_data in data_tuple]) / np.sqrt(len(image_stack)), axis=0) for
                    data_tuple in zip(*image_stack)]
 
-    return frame_mean, pixel_error
+    return frame_mean_list, pixel_error_list
 
 
 def _frame_median(image_stack):
 
-    # transpose the lists, then stack and take the median
-    image_median_list = [np.median(np.stack([hdu_data for hdu_data in data_tuple]), axis=0) for data_tuple in zip(*image_stack)]
+    # transpose the lists, then stack and take the median. np.squeeze removes the leftover axis
+    # returns a list to account for multiple frames
+    image_median_list = [np.squeeze(np.median(np.stack([hdu_data for hdu_data in data_tuple]), axis=0)) for data_tuple in zip(*image_stack)]
 
     # transpose the lists of data, than take the std deviation.
     # the error is calculated as 1.253*std_dev/sqrt(n)
@@ -268,6 +270,7 @@ def _frame_median(image_stack):
 
 
 def _sigma_clipped_frame_average(image_stack, **kwargs):
+    # returns a list to account for multiple frames
     # generate an array of zeros the size of the array
     image_value_sum_list = [np.zeros_like(image_data, dtype=float) for image_data in image_stack[0]]
 
