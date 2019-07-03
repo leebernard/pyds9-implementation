@@ -376,10 +376,15 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
     """
 
     # add a None to the start of the data list, for the primary HDU
-    data_list.insert(0, None)
+    # data_list.insert(0, None)
     # copy the first HDUList
     with fits.open(file_path + '/' + source_filename_list[0]) as hdul:
         hdulcopy = _copy_hdul(hdul)
+
+    # insert Nones as placeholders for hdu with no data
+    for n, hdu in enumerate(hdulcopy):
+        if hdu.data is None:
+            data_list.insert(n, None)
 
     # make generator for modifying the fits file
     hdul_generator = (hdu for hdu in hdulcopy)
