@@ -150,7 +150,7 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
     hdulcopy.writeto(file_path + '/' + writeto_filename)
 
 
-def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, sigma=3.0, iters=5, **kwargs):
+def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, overwrite=False, sigma=3.0, iters=5, **kwargs):
     """
     This function calculates a sigma clipped average of images stored in fits
     files, by accessing them via a list of filenames.
@@ -191,7 +191,13 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
         Defaults to the current working directory.
     writeto_filename: str or None, optional
         String that contains a file name to write the result to as HDU with
-        extensions, in fits format. If None, does not write to file.
+        extensions, in fits format. If None, does not write to file. The file
+        will be saved to the same location as the source data, that is, the
+        location specified by \'path\'.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
     sigma: float, optional
         The number of standard deviations to use for both the lower and upper
         clipping limit.
@@ -220,20 +226,20 @@ def sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, 
 
     if writeto_filename is not None:
         frame_clipped_average_data, frame_clipped_average_error, frame_included_pixel_tracker = \
-            sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters,**kwargs)
+            _sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters,**kwargs)
 
         comment_string = 'Changed data to the sigma clipped average of ' + str(len(filename_list)) + \
                          ' zero frames, of which this is the first'
 
         _write_average_data_to_file(frame_clipped_average_data, writeto_filename, source_filename_list=filename_list,
-                                    file_path=biasframe_path, comment_string=comment_string)
+                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
 
-        print('Amount of garbage:')
-        print(gc.collect())
+        # print('Amount of garbage:')
+        # print(gc.collect())
 
         return frame_clipped_average_data, frame_clipped_average_error, frame_included_pixel_tracker
     else:
-        return _sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters,**kwargs)
+        return _sigma_clipped_frame_average(image_stack, sigma=sigma, iters=iters, **kwargs)
 
 
 def frame_average(filename_list, path='.', writeto_filename=None):
