@@ -10,23 +10,12 @@ wrapper.
 
 Functions
 ---------
-get_ds9_region(ds9=None, bias_sec=None, get_data=True):
-    Retrieves a selected region from DS9, and returns it as a Region instance
-make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
-    Generates and returns a source mask from image data.
-image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
-    Returns stats on image data.
 bias_from_ds9(ds9=None, bias_sec=None):
     Returns the data in the bias section from an image loaded in DS9.
-sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
-    Returns the sky background subtracted image data
 bias_subtract(hdu, bias_sec=None):
     Returns the bias subtracted data
 display_data(imdata, **kwargs):
     A wrapper for displaying image data using MatPlotLib
-sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, overwrite=False, sigma=3.0, iters=5, **kwargs):
-    Takes the average of a set of image data from file, with outliers
-    clipped.
 frame_average(filename_list, path='.', writeto_filename=None, overwrite=False):
     Takes the average of a set of image data, from file.
 frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
@@ -34,8 +23,19 @@ frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
     to be a more robust version of frame_average.
 frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_in_ds9=False, write_to=None):
     Subtracts image data frame by frame, either from file or from DS9
+get_ds9_region(ds9=None, bias_sec=None, get_data=True):
+    Retrieves a selected region from DS9, and returns it as a Region instance
 get_filenames(path='.', extension=None, pattern=None, identifiers=None, include_path=False):
     A function that retrieves file names from a particular directory.
+image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
+    Returns stats on image data.
+make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
+    Generates and returns a source mask from image data.
+sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, overwrite=False, sigma=3.0, iters=5, **kwargs):
+    Takes the average of a set of image data from file, with outliers
+    clipped.
+sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
+    Returns the sky background subtracted image data
 """
 
 __version__ = '0.3'
@@ -319,6 +319,31 @@ def _sigma_clipped_frame_average(image_stack, **kwargs):
     pixel_error_list = [np.sqrt(image_variance/counter) for image_variance, counter in zip(variance_tracker_list, average_counter_list)]
 
     return average_image_list, pixel_error_list, pixel_counter_list
+
+
+def _sigma_clipped_frame_stats(image_stack, **kwargs):
+    """Notes on this method:
+
+    It does not account for the area of the guassian curve that is removed by
+    the clipping. This means that the std dev result is potentially off by a
+    factor equal to the clipped area.
+
+    However, things like cosmic rays are *false signal*, and by def do not
+    contribute to the *real* signal. Therefore, clipping them out does not affect
+    the std dev: or more accurately, clipping them affects the std dev greatly,
+    by removing the spurious signal and moving the std towards the std dev of the
+    *true* signal."""
+    # transpose the lists of data, then take the mean. np.squeeze removes the leftover axis
+    # returns a list to account for multiple frames
+    clipped_stats_frame_list = [sigma_clipped_stats(np.stack([hdu_data for hdu_data in data_tuple]), axis=0, **kwargs) for data_tuple in zip(*image_stack)]
+
+    # remove the leftover axis from the data results.
+    # also, unpack the results in separate lists, for consistency with the other stats functions
+    clipped_mean_frame_list = [np.squeeze(frame_stats[0]) for frame_stats in clipped_stats_frame_list]
+    clipped_median_frame_list = [np.squeeze(frame_stats[1]) for frame_stats in clipped_stats_frame_list]
+    clipped_stddev_frame_list = [np.squeeze(frame_stats[2]) for frame_stats in clipped_stats_frame_list]
+
+    return clipped_mean_frame_list, clipped_median_frame_list, clipped_stddev_frame_list
 
 
 def _write_average_data_to_file(data_list, writeto_filename, source_filename_list=None, file_path='.', overwrite=False, comment_string=None):
@@ -628,6 +653,83 @@ def frame_average(filename_list, path='.', writeto_filename=None, overwrite=Fals
         return frame_average_data, frame_average_error
     else:
         return _frame_mean(image_stack)
+
+
+def sigma_clipped_frame_stats(filename_list, path='.', writeto_filename=None, overwrite=False, **kwargs):
+    """
+    This function returns a sigma-clipped mean, median and and standard
+    deviation of images stored in fits files, by accessing them via a list of
+    file names.
+
+    This function averages frame data that has been stored on disk in fits
+    files. It does so by taking a list of file names, and assumes that the
+    frames are the same size. If a file path is not specified, it defaults to
+    the current working directory. The result can be written to file by
+    specifying a filename, and is saved to the same directory as the source
+    files. This function presumes that each fits file contains a Header Data
+    Unit with extensions. Data is taken from theHDUs, stacked, and the averages
+    computed. This produces a list of data arrays corresponding to the HDU data
+    arrays. If the image has only one HDU, it will return a list of one.
+
+    The statistics are calculated using astropy.stats.sigma_clipped_stats. This
+    function takes a particular section of the CCD, and stacks the data from
+    all the images that correspond to that section, so that the vertical index
+    corresponds to different images, and the two horizontal indices correspond
+    to pixel coordinates.
+
+    It then identifies outliers along the vertical axis, masks them using
+    an iterative process, and then takes the mean, median, and std dev along
+    the vertical axis. The std dev accounts for the change in degrees of
+    freedom cause by the clipping.
+
+    Parameters
+    ----------
+    filename_list: list
+        List of strings containing the file names of the frames to be averaged.
+    path: str, optional
+        A string that contains the file path that contains the filenames given.
+        Defaults to the current working directory.
+    writeto_filename: str or None, optional
+        String that contains a file name to write the result to as HDU with
+        extensions, in fits format. If None, does not write to file. The file
+        will be saved to the same location as the source data, that is, the
+        location specified by \'path\'.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
+    kwargs: dict, optional
+        A list of keyword arguments for setting options for the sigma clipping
+        routine. This includes options such as sigma limits for clipping, the
+        number of iterations, and what function is used to determine what are
+        outliers. See astropy.stats.sigma_clipped_stats for more details.
+
+    Returns
+    --------
+    clipped_mean_frame_list: list
+        A list of ndarrays containing sigma clipped average image data.
+    clipped_median_frame_list: list
+        A list of ndarrays containing sigma clipped median image data.
+    clipped_stddev_frame_list: list
+        A list of ndarrays containing sigma clipped standard deviation data.
+
+    """
+    # unpack the data, ignoring None values
+    with ExitStack() as fits_stack:
+        hdul_list = [fits_stack.enter_context(fits.open(path + '/' + fits_name)) for fits_name in filename_list]
+        image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
+    if writeto_filename is not None:
+        clipped_mean_frame_list, clipped_median_frame_list, clipped_stddev_frame_list = _sigma_clipped_frame_stats(
+            image_stack, **kwargs)
+        comment_string = 'Changed data to the average of ' + str(len(filename_list)) + \
+                         ' zero frames, of which this is the first'
+
+        _write_average_data_to_file(clipped_mean_frame_list, writeto_filename, source_filename_list=filename_list,
+                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
+        return clipped_mean_frame_list, clipped_median_frame_list, clipped_stddev_frame_list
+    else:
+        return _sigma_clipped_frame_stats(image_stack, **kwargs)
 
 
 def frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
@@ -1186,7 +1288,11 @@ def get_filenames(path='.', extension=None, pattern=None, identifiers=None, incl
 
 def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, verbose=False, **kwargs):
     """
-    Calculates statistics on the background of the image data given.
+    Calculates statistics on the image data given.
+
+    This function can mask sources, providing stats on the background. It can
+    also ignore outliers in the pixel data using sigma clipping.
+
 
     Parameters
     ----------
