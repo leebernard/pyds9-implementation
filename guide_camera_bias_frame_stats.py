@@ -11,6 +11,7 @@ bias_stats = []
 bias_clipped_stats = []
 for file in filenames[:5]:
     with fits.open(path+'/'+file) as hdul:
+        print('data type:', hdul[0].data.dtype)
         bias_stats.append(image_stats(hdul[0].data))
         bias_clipped_stats.append(image_stats(hdul[0].data, sigma_clip=True, sigma=4.0))
 

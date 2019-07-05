@@ -402,7 +402,17 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
             for filename in source_filename_list:
                 hdu.header.add_comment(filename)
 
-    hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
+    try:
+        hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
+    except OSError as write_error:
+        print(write_error)
+        userinput = input('do you wish to overwrite? (y/n)')
+        if userinput == ('y' or'Y' or 'yes' or 'Yes'):
+            hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=True)
+        else:
+            print('File not saved.')
+
+
 
 
 def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_path='.', overwrite=False, comment_string=None):
