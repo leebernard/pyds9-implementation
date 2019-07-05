@@ -34,3 +34,20 @@ print('mean pixel count of the master bias frame:', f'{np.mean(stacked_bias_mean
 print('median pixel count of same:', f'{np.median(stacked_bias_mean):.3f}')
 print('standard deviation of same:', f'{np.std(stacked_bias_mean):.3f}')
 # Do the same for 1MHz, Gain 1:
+
+# now it's time to measure the read noise
+# start an instance of ds9, to display a bias frame
+ds9 = pyds9.DS9(target='bias-display', start='-title display')
+pyds9.ds9_targets()
+# open one of the files. the filename list is semi-random, so just grab the first entry
+ds9.set('fits '+path+'/'+filenames[0])
+# in DS9, make a box region that avoids the edges of the image, to avoid any sort of trail-off or other edge
+# weirdness. Also make sure no cosmic rays are in it. Then select the box.
+bias_data = get_ds9_region(ds9).data
+# calculate statistics on the data, such that it prints the results
+print('Statistics without clipping')
+image_stats(bias_data, sigma_clip=False, verbose=True)
+# readnoise is the std dev of the data, after sigma clipping
+print('------------------------------------')
+print('Statistics after clipping to 4-sigma')
+_ , _, readnoise = image_stats(bias_data, sigma_clip=True, sigma=2.0, verbose=True)

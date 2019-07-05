@@ -1349,9 +1349,13 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, verbose
     # apply the mask. If the mask is None, this effectively does nothing
     masked_data = np.ma.array(imdata, mask=mask)
     if sigma_clip:
-        mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-    else:
-        mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+        # creat sigma clipping filter
+        filter = SigmaClip(**kwargs)
+        # mask the outliers
+        masked_data = filter(masked_data)
+
+    # calculate stats
+    mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
     if verbose:
         print(f'Min pixel value: {np.min(masked_data):.2f}')
