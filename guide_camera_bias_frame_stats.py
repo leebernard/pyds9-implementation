@@ -43,6 +43,8 @@ pyds9.ds9_targets()
 ds9.set('fits '+path+'/'+filenames[0])
 # in DS9, make a box region that avoids the edges of the image, to avoid any sort of trail-off or other edge
 # weirdness. Also make sure no cosmic rays are in it. Then select the box.
+input('Pause while you select data. Press enter to continue')
+
 bias_data = get_ds9_region(ds9).data
 # calculate statistics on the data, such that it prints the results
 print('Statistics without clipping')
@@ -50,4 +52,4 @@ image_stats(bias_data, sigma_clip=False, verbose=True)
 # readnoise is the std dev of the data, after sigma clipping
 print('------------------------------------')
 print('Statistics after clipping to 4-sigma')
-_ , _, readnoise = image_stats(bias_data, sigma_clip=True, sigma=2.0, verbose=True)
+_ , _, readnoise = image_stats(bias_data, sigma_clip=True, sigma=4.0, verbose=True)
