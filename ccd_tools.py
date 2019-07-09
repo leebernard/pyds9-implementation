@@ -38,7 +38,7 @@ sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     Returns the sky background subtracted image data
 """
 
-__version__ = '0.3'
+__version__ = '0.4'
 __author__ = 'Lee Bernard'
 # import needed packages
 
