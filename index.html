@@ -1,11 +1,9 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
     <title>Welcome to ccd_tools’s documentation! &#8212; ccd_tools 0.2 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -13,6 +11,7 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
    
@@ -40,189 +39,160 @@ for convenience. This is very much still in development, so use with
 caution.</p>
 <div class="section" id="classes">
 <h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h2>
-<p>The ‘Region’ class is for holding segments of image data in a convenient
+<p>The Region class is for holding segments of image data in a convenient
 wrapper.</p>
 </div>
 <div class="section" id="functions">
 <h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h2>
-<dl class="docutils">
-<dt>get_ds9_regions:</dt>
-<dd>Retrieves a selected region from DS9, and returns it as a Region instance</dd>
-<dt>make_source_mask:</dt>
-<dd>Generates and returns a source mask from image data.</dd>
-<dt>image_stats:</dt>
-<dd>Returns stats on image data.</dd>
-<dt>bias_from_ds9:</dt>
-<dd>Returns the data in the bias section from an image loaded in DS9.</dd>
-<dt>sky_subtract:</dt>
-<dd>Returns the sky background subtracted image data</dd>
-<dt>bias_subtract:</dt>
-<dd>Returns the bias subtracted data</dd>
-<dt>display_data:</dt>
-<dd>A wrapper for displaying image data using MatPlotLib</dd>
-<dt>get_filenames:</dt>
-<dd>A function that retrieves file names from a particular directory.</dd>
-<dt>frame_subtract:</dt>
-<dd>Subtracts image data frame by frame, either from file or from DS9</dd>
-<dt>frame_average:</dt>
-<dd>Takes the average of a set of image data, from file.</dd>
-<dt>frame_median:</dt>
-<dd>Takes the per-pixel median of a set of image data, from file. Intended
-to be a more robust version of frame_average.</dd>
-<dt>sigma_clipped_frame_average:</dt>
-<dd>Takes the average of a set of image data from file, with outliers
-clipped.</dd>
+<dl class="simple">
+<dt>bias_from_ds9(ds9=None, bias_sec=None):</dt><dd><p>Returns the data in the bias section from an image loaded in DS9.</p>
+</dd>
+<dt>bias_subtract(hdu, bias_sec=None):</dt><dd><p>Returns the bias subtracted data</p>
+</dd>
+<dt>display_data(imdata, <a href="#id1"><span class="problematic" id="id2">**</span></a>kwargs):</dt><dd><p>A wrapper for displaying image data using MatPlotLib</p>
+</dd>
+<dt>frame_average(filename_list, path=’.’, writeto_filename=None, overwrite=False):</dt><dd><p>Takes the average of a set of image data, from file.</p>
+</dd>
+<dt>frame_median(filename_list, path=’.’, writeto_filename=None, overwrite=False):</dt><dd><p>Takes the per-pixel median of a set of image data, from file. Intended
+to be a more robust version of frame_average.</p>
+</dd>
+<dt>sigma_clipped_frame_stats(filename_list, path=’.’, writeto_filename=None, overwrite=False, <a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs)</dt><dd><p>This returns the sigma clipped mean, median, and std dev of a stack of
+data, taken along the stack axis.</p>
+</dd>
+<dt>frame_subtract(minuend, subtrahend, file_path=’.’, overwrite=False, display_in_ds9=False, write_to=None):</dt><dd><p>Subtracts image data frame by frame, either from file or from DS9</p>
+</dd>
+<dt>get_ds9_region(ds9=None, bias_sec=None, get_data=True):</dt><dd><p>Retrieves a selected region from DS9, and returns it as a Region instance</p>
+</dd>
+<dt>get_filenames(path=’.’, extension=None, pattern=None, identifiers=None, include_path=False):</dt><dd><p>A function that retrieves file names from a particular directory.</p>
+</dd>
+<dt>image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, <a href="#id5"><span class="problematic" id="id6">**</span></a>kwargs):</dt><dd><p>Returns stats on image data.</p>
+</dd>
+<dt>make_source_mask(indata, snr=2, npixels=5, display_mask=False, <a href="#id7"><span class="problematic" id="id8">**</span></a>kwargs):</dt><dd><p>Generates and returns a source mask from image data.</p>
+</dd>
+<dt>sky_subtract(im_data, mask=None, mask_sources=True, <a href="#id9"><span class="problematic" id="id10">**</span></a>kwargs):</dt><dd><p>Returns the sky background subtracted image data</p>
+</dd>
 </dl>
 <dl class="class">
 <dt id="ccd_tools.Region">
-<em class="property">class </em><code class="descclassname">ccd_tools.</code><code class="descname">Region</code><a class="reference internal" href="_modules/ccd_tools.html#Region"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.Region" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">Region</code><a class="reference internal" href="_modules/ccd_tools.html#Region"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.Region" title="Permalink to this definition">¶</a></dt>
 <dd><p>This class is for convenient packaging of the region data.</p>
 <p>For example, (self.xmin, self.ymin) gives the array location of lower left corner of region in the image data.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Attributes:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>region_def: string</strong></dt>
-<dd><p class="first last">String definition of the region. This can be the region as defined in DS9, or any string definition the user
+<dl class="field-list simple">
+<dt class="field-odd">Attributes</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>region_def: string</strong></dt><dd><p>String definition of the region. This can be the region as defined in DS9, or any string definition the user
 decides.</p>
 </dd>
-<dt><strong>source_file: string</strong></dt>
-<dd><p class="first last">String containing the name and path of the file that the region originated from.</p>
+<dt><strong>source_file: string</strong></dt><dd><p>String containing the name and path of the file that the region originated from.</p>
 </dd>
-<dt><strong>x_coord: float</strong></dt>
-<dd><p class="first last">x coordinate of the region center</p>
+<dt><strong>x_coord: float</strong></dt><dd><p>x coordinate of the region center</p>
 </dd>
-<dt><strong>y_coord: float</strong></dt>
-<dd><p class="first last">y coordinate of the region center</p>
+<dt><strong>y_coord: float</strong></dt><dd><p>y coordinate of the region center</p>
 </dd>
-<dt><strong>width: float</strong></dt>
-<dd><p class="first last">width of the region</p>
+<dt><strong>width: float</strong></dt><dd><p>width of the region</p>
 </dd>
-<dt><strong>height: float</strong></dt>
-<dd><p class="first last">height of the region</p>
+<dt><strong>height: float</strong></dt><dd><p>height of the region</p>
 </dd>
-<dt><strong>xmin: int</strong></dt>
-<dd><p class="first last">x coordinate of the lower left corner</p>
+<dt><strong>xmin: int</strong></dt><dd><p>x coordinate of the lower left corner</p>
 </dd>
-<dt><strong>xmax: int</strong></dt>
-<dd><p class="first last">x coordinate of the upper right corner</p>
+<dt><strong>xmax: int</strong></dt><dd><p>x coordinate of the upper right corner</p>
 </dd>
-<dt><strong>ymin: int</strong></dt>
-<dd><p class="first last">y coordinate of the lower left corner</p>
+<dt><strong>ymin: int</strong></dt><dd><p>y coordinate of the lower left corner</p>
 </dd>
-<dt><strong>ymax: int</strong></dt>
-<dd><p class="first last">y coordinate of the upper right corner</p>
+<dt><strong>ymax: int</strong></dt><dd><p>y coordinate of the upper right corner</p>
 </dd>
-<dt><strong>data: ndarray</strong></dt>
-<dd><p class="first last">Image data array of the defined region.</p>
+<dt><strong>data: ndarray</strong></dt><dd><p>Image data array of the defined region.</p>
 </dd>
-<dt><strong>bias_sub: ndarray</strong></dt>
-<dd><p class="first last">Image data array of the defined region, after bias subtraction</p>
+<dt><strong>bias_sub: ndarray</strong></dt><dd><p>Image data array of the defined region, after bias subtraction</p>
 </dd>
-<dt><strong>sky_sub: ndarray</strong></dt>
-<dd><p class="first last">Image data array of the defined region, after background subtraction.
+<dt><strong>sky_sub: ndarray</strong></dt><dd><p>Image data array of the defined region, after background subtraction.
 This data may also be bias subtracted.</p>
 </dd>
-<dt><strong>bias_stats: tuple</strong></dt>
-<dd><p class="first last">Three numbers representing, in order: the bias region mean, median, and standard deviation</p>
+<dt><strong>bias_stats: tuple</strong></dt><dd><p>Three numbers representing, in order: the bias region mean, median, and standard deviation</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <p class="rubric">Methods</p>
-<table border="1" class="docutils">
+<table class="docutils align-default">
 <colgroup>
-<col width="89%" />
-<col width="11%" />
+<col style="width: 89%" />
+<col style="width: 11%" />
 </colgroup>
-<tbody valign="top">
-<tr class="row-odd"><td><strong>sky_subtract: adds sky background subtracted data to the sky_sub attribute.</strong></td>
-<td>&#160;</td>
+<tbody>
+<tr class="row-odd"><td><p><strong>sky_subtract: adds sky background subtracted data to the sky_sub attribute.</strong></p></td>
+<td></td>
 </tr>
-<tr class="row-even"><td><strong>stats: displays statistics on the data attributes</strong></td>
-<td>&#160;</td>
+<tr class="row-even"><td><p><strong>stats: displays statistics on the data attributes</strong></p></td>
+<td></td>
 </tr>
 </tbody>
 </table>
 <dl class="method">
 <dt id="ccd_tools.Region.sky_subtract">
-<code class="descname">sky_subtract</code><span class="sig-paren">(</span><em>mask=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#Region.sky_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.Region.sky_subtract" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">sky_subtract</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">mask=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#Region.sky_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.Region.sky_subtract" title="Permalink to this definition">¶</a></dt>
 <dd><p>This method calculates the background subtracted data, and stores it in
 the sky_sub attribute.</p>
 <p>This is a wrapper for sky_subtract. If bias subtracted data is available,
-it uses that. Otherwise, it uses data in the data attribute. If neither
-are available, raises an exception.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>mask: numpy.ndarray (bool), optional</strong></dt>
-<dd><p class="first last">A boolean mask with the same shape as data, where a True value
+it uses that. Otherwise, it uses data in the data attribute. If neither are</p>
+<blockquote>
+<div><p>available, raises an exception.</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>mask: numpy.ndarray (bool), optional</strong></dt><dd><p>A boolean mask with the same shape as data, where a True value
 indicates the corresponding element of data is masked. Masked pixels
 are excluded when computing the statistics.</p>
 </dd>
-<dt><strong>kwargs: dict, optional</strong></dt>
-<dd><p class="first last">Optional keywords for sky_subtract</p>
+<dt><strong>kwargs: dict, optional</strong></dt><dd><p>Optional keywords for sky_subtract</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>ValueError</strong></dt>
-<dd><p class="first last">If both the data attribute and the bias_sub attribute are set to none.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ValueError</dt><dd><p>If both the data attribute and the bias_sub attribute are set to none.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <div class="admonition seealso">
-<p class="first admonition-title">See also</p>
-<dl class="last docutils">
-<dt><a class="reference internal" href="#ccd_tools.sky_subtract" title="ccd_tools.sky_subtract"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sky_subtract</span></code></a></dt>
-<dd>returns background subtracted data</dd>
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#ccd_tools.sky_subtract" title="ccd_tools.sky_subtract"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sky_subtract</span></code></a></dt><dd><p>returns background subtracted data</p>
+</dd>
 </dl>
 </div>
 </dd></dl>
 
 <dl class="method">
 <dt id="ccd_tools.Region.stats">
-<code class="descname">stats</code><span class="sig-paren">(</span><em>mask=None</em>, <em>sigma_clip=False</em>, <em>mask_sources=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#Region.stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.Region.stats" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">stats</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">mask=None</em>, <em class="sig-param">sigma_clip=False</em>, <em class="sig-param">mask_sources=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#Region.stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.Region.stats" title="Permalink to this definition">¶</a></dt>
 <dd><p>Displays statistics of the region data, and bias subtracted and sky
 subtracted data if available.</p>
 <p>Has options for masking and sigma clipping.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>sigma_clip: bool, optional</strong></dt>
-<dd><p class="first last">If True, returns sigma clipped statistics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>sigma_clip: bool, optional</strong></dt><dd><p>If True, returns sigma clipped statistics.</p>
 </dd>
-<dt><strong>mask: np.ndarray (bool), optional</strong></dt>
-<dd><p class="first last">Boolean array of the same shape as self.data. Entries that are set to
+<dt><strong>mask: np.ndarray (bool), optional</strong></dt><dd><p>Boolean array of the same shape as self.data. Entries that are set to
 True are ignored in statistical calculations.</p>
 </dd>
-<dt><strong>mask_sources:</strong></dt>
-<dd><p class="first last">Flag for masking sources or not</p>
+<dt><strong>mask_sources:</strong></dt><dd><p>Flag for masking sources or not</p>
 </dd>
-<dt><strong>kwargs: dict</strong></dt>
-<dd><p class="first last">Keyword arguments to be passed to image stats</p>
+<dt><strong>kwargs: dict</strong></dt><dd><p>Keyword arguments to be passed to image stats</p>
+</dd>
+<dt><strong>Returns</strong></dt><dd></dd>
+<dt><strong>——-</strong></dt><dd></dd>
+</dl>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
 <div class="admonition seealso">
-<p class="first admonition-title">See also</p>
-<dl class="last docutils">
-<dt><a class="reference internal" href="#ccd_tools.image_stats" title="ccd_tools.image_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">image_stats</span></code></a></dt>
-<dd>calculates statistics on image data</dd>
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#ccd_tools.image_stats" title="ccd_tools.image_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">image_stats</span></code></a></dt><dd><p>calculates statistics on image data</p>
+</dd>
 </dl>
 </div>
 </dd></dl>
@@ -231,95 +201,87 @@ True are ignored in statistical calculations.</p>
 
 <dl class="function">
 <dt id="ccd_tools.bias_from_ds9">
-<code class="descclassname">ccd_tools.</code><code class="descname">bias_from_ds9</code><span class="sig-paren">(</span><em>ds9=None</em>, <em>bias_sec=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#bias_from_ds9"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.bias_from_ds9" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">bias_from_ds9</code><span class="sig-paren">(</span><em class="sig-param">ds9=None</em>, <em class="sig-param">bias_keyword='BIASSEC'</em>, <em class="sig-param">bias_sec=None</em>, <em class="sig-param">verbose=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#bias_from_ds9"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.bias_from_ds9" title="Permalink to this definition">¶</a></dt>
 <dd><p>This function retrieves the bias section from a fits file loaded in DS9.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>ds9: DS9() instance, optional</strong></dt>
-<dd><p class="first last">Target DS9 instance to retrieve the data from. If not specified, this
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>ds9: DS9() instance, optional</strong></dt><dd><p>Target DS9 instance to retrieve the data from. If not specified, this
 will be acquired automatcially.</p>
 </dd>
-<dt><strong>bias_sec: array-like, optional</strong></dt>
-<dd><p class="first last">This must be a list, tuple, or array of four numbers that define the
+<dt><strong>bias_keyword: string, optional</strong></dt><dd><p>The header keyword associated with the bias section data.</p>
+</dd>
+<dt><strong>bias_sec: array-like, optional</strong></dt><dd><p>This must be a list, tuple, or array of four numbers that define the
 bias section of the image, in the form (xmin, xmax, ymin, ymax). The
 numbers can be ints, floats, or strings that represent ints. If a float
 is given, it will be truncated towards zero. If None, the bias section
 will be retrieved from the header.</p>
 </dd>
-</dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>bias_data: ndarray</strong></dt>
-<dd><p class="first last">Numpy array containing the pixel values of the bias section.</p>
+<dt><strong>verbose: bool, optional</strong></dt><dd><p>If True, the source file name and the bias section definition are
+printed out. Since the bias section is pulled from the header
+called BIASSEC, this bascially prints that portion of the header.</p>
+</dd>
+<dt><strong>Returns</strong></dt><dd></dd>
+<dt><strong>——-</strong></dt><dd></dd>
+<dt><strong>bias_data: ndarray</strong></dt><dd><p>Numpy array containing the pixel values of the bias section.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.bias_subtract">
-<code class="descclassname">ccd_tools.</code><code class="descname">bias_subtract</code><span class="sig-paren">(</span><em>hdu</em>, <em>bias_sec=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#bias_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.bias_subtract" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">bias_subtract</code><span class="sig-paren">(</span><em class="sig-param">hdu</em>, <em class="sig-param">bias_keyword='BIASSEC'</em>, <em class="sig-param">bias_sec=None</em>, <em class="sig-param">verbose=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#bias_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.bias_subtract" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the bias subtracted data from a header data unit.</p>
 <p>Takes a header data unit, and finds the mean of the bias section.
 It then subtracts that mean from a copy of the image data, and returns
 the result.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>hdu</strong> <span class="classifier-delimiter">:</span> <span class="classifier">fits header data unit</span></dt>
-<dd><p class="first last">Image data stored in a fits file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>hdu</strong><span class="classifier">fits header data unit</span></dt><dd><p>A fits file header data unit that has been opened using astropy.io.fits.</p>
 </dd>
-<dt><strong>bias_sec: array-like, optional</strong></dt>
-<dd><p class="first last">This must be a list, tuple, or array of four numbers, that define the
+<dt><strong>bias_keyword: string, optional</strong></dt><dd><p>The header keyword associated with the bias section data.</p>
+</dd>
+<dt><strong>bias_sec: array-like, optional</strong></dt><dd><p>This must be a list, tuple, or array of four numbers that define the
 bias section of the image. The numbers can be ints, floats, or strings
 that represent ints. If a float is given, it will be truncated
 towards zero.</p>
 </dd>
-</dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>output_im</strong> <span class="classifier-delimiter">:</span> <span class="classifier">numpy array</span></dt>
-<dd><p class="first last">the image data array after bias subtraction</p>
+<dt><strong>verbose: bool, optional</strong></dt><dd><p>An optional mode for diagnosing issues. If true, the mean, median, and
+standard deviation of the bias section will be printed out. The value
+pulled from the header keyword will also be printed. Default
+value is false.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>output_im</strong><span class="classifier">numpy array</span></dt><dd><p>the image data array after bias subtraction</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.display_data">
-<code class="descclassname">ccd_tools.</code><code class="descname">display_data</code><span class="sig-paren">(</span><em>imdata</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.display_data" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">display_data</code><span class="sig-paren">(</span><em class="sig-param">imdata</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.display_data" title="Permalink to this definition">¶</a></dt>
 <dd><p>A wrapper for matplotlib.pyplot.imshow, for displaying image data.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>imdata: ndarray</strong></dt>
-<dd><p class="first last">image data array to be displayed</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>imdata: ndarray</strong></dt><dd><p>image data array to be displayed</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.frame_average">
-<code class="descclassname">ccd_tools.</code><code class="descname">frame_average</code><span class="sig-paren">(</span><em>filename_list</em>, <em>path='.'</em>, <em>writeto_filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_average"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_average" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">frame_average</code><span class="sig-paren">(</span><em class="sig-param">filename_list</em>, <em class="sig-param">path='.'</em>, <em class="sig-param">writeto_filename=None</em>, <em class="sig-param">overwrite=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_average"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_average" title="Permalink to this definition">¶</a></dt>
 <dd><p>This function returns an average and error estimate of images stored in fits files, by
 accessing them via a list of filenames.</p>
 <p>This function averages frame data that has been stored on disk in fits
@@ -327,52 +289,47 @@ files. It does so by taking a list of file names. If a file path is not
 specified, defaults to the current working directory. The result can be
 written to file by specifying a filename, and is saved to the same
 directory as the source files. This function presumes that each fits file
-contains a Header Data Unit with extensions.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>filename_list: list</strong></dt>
-<dd><p class="first last">List of strings containing the file names of the frames to be averaged.</p>
-</dd>
-<dt><strong>path: str, optional</strong></dt>
-<dd><p class="first last">A string that contains the file path that contains the filenames given.
-Defaults to the current working directory.</p>
-</dd>
-<dt><strong>writeto_filename: str or None, optional</strong></dt>
-<dd><p class="first last">String that contains a file name to write the result to as HDU with
-extensions, in fits format. If None, does not write to file.</p>
-</dd>
-</dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>frame_mean: list</strong></dt>
-<dd><p class="first last">A list of ndarrays containing image data after averaging</p>
-</dd>
-<dt><strong>pixel_error: list</strong></dt>
-<dd><p class="first last">A list of ndarrays correspoding to frame_mean, that contains the
-per-pixel error on the average.</p>
-</dd>
-</dl>
-</td>
-</tr>
-</tbody>
-</table>
-<p class="rubric">Notes</p>
-<p>Data is taken from the extensions, stacked, and the averages computed.
-This produces a list of data arrays, with each entry in the list
-corresponding to an HDU data array.</p>
+contains a Header Data Unit with extensions. Data is taken from the
+extensions, stacked, and the averages computed. This produces a list of
+data arrays corresponding to the HDU data arrays.</p>
 <p>The error is calculated by taking the standard deviation of the data used
 to calculate the mean, on a pixel by pixel basis, and then dividing by the
 square root of the number of frames. This produces a list of arrays the
-same shape as the list of average frames.</p>
+same shape as the frame data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename_list: list</strong></dt><dd><p>List of strings containing the file names of the frames to be averaged.</p>
+</dd>
+<dt><strong>path: str, optional</strong></dt><dd><p>A string that contains the file path that contains the filenames given.
+Defaults to the current working directory.</p>
+</dd>
+<dt><strong>writeto_filename: str or None, optional</strong></dt><dd><p>String that contains a file name to write the result to as HDU with
+extensions, in fits format. If None, does not write to file. The file
+will be saved to the same location as the source data, that is, the
+location specified by ‘path’.</p>
+</dd>
+<dt><strong>overwrite: bool, optional</strong></dt><dd><p>If True, allows the output file to be overwritten if it already exists.
+Raises an OSError if False and the output file exists. Default is
+false.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>frame_mean: list</dt><dd><p>A list of ndarrays containing image data after averaging</p>
+</dd>
+<dt>pixel_error: list</dt><dd><p>A list of ndarrays correspoding to frame_mean, that contains the
+per-pixel error on the average.</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.frame_median">
-<code class="descclassname">ccd_tools.</code><code class="descname">frame_median</code><span class="sig-paren">(</span><em>filename_list</em>, <em>path='.'</em>, <em>writeto_filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_median"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_median" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">frame_median</code><span class="sig-paren">(</span><em class="sig-param">filename_list</em>, <em class="sig-param">path='.'</em>, <em class="sig-param">writeto_filename=None</em>, <em class="sig-param">overwrite=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_median"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_median" title="Permalink to this definition">¶</a></dt>
 <dd><p>This function returns the median of several frames.</p>
 <p>The frames are accessed from disk, by passing the file names. If a file
 path is not specified, defaults to current working directory. The result
@@ -386,46 +343,43 @@ outliers like cosmic rays.</p>
 multiplying by 1.253. Note that this only gives accurate error estimates
 for data that is normally distributed. This should be kept in mind when
 reviewing errors on data sets that contain outliers.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>filename_list: list</strong></dt>
-<dd><p class="first last">List of strings containing the file names of the frames to be averaged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename_list: list</strong></dt><dd><p>List of strings containing the file names of the frames to be averaged.</p>
 </dd>
-<dt><strong>path: str, optional</strong></dt>
-<dd><p class="first last">A string that contains the file path for the file names given. Defaults
+<dt><strong>path: str, optional</strong></dt><dd><p>A string that contains the file path for the file names given. Defaults
 to the current working directory.</p>
 </dd>
-<dt><strong>writeto_filename: str or None, optional</strong></dt>
-<dd><p class="first last">String that contains a file name to write the result to as HDU with
-extensions, in fits format. If None, does not write to file.</p>
+<dt><strong>writeto_filename: str or None, optional</strong></dt><dd><p>String that contains a file name to write the result to as HDU with
+extensions, in fits format. If None, does not write to file. The file
+will be saved to the same location as the source data, that is, the
+location specified by ‘path’.</p>
+</dd>
+<dt><strong>overwrite: bool, optional</strong></dt><dd><p>If True, allows the output file to be overwritten if it already exists.
+Raises an OSError if False and the output file exists. Default is
+false.</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>frame_median: list</strong></dt>
-<dd><p class="first last">A list of ndarrays containing image data after taking the median.</p>
 </dd>
-<dt><strong>pixel_error: list</strong></dt>
-<dd><p class="first last">A list of ndarrays corresponding to frame_median, that contains the
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>frame_median: list</dt><dd><p>A list of ndarrays containing image data after taking the median.</p>
+</dd>
+<dt>pixel_error: list</dt><dd><p>A list of ndarrays corresponding to frame_median, that contains the
 per-pixel error on the average.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.frame_subtract">
-<code class="descclassname">ccd_tools.</code><code class="descname">frame_subtract</code><span class="sig-paren">(</span><em>minuend</em>, <em>subtrahend</em>, <em>file_path='.'</em>, <em>display_in_ds9=False</em>, <em>write_to=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_subtract" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="docutils">
-<dt>This function subtracts one HDUList from another, and returns the resultant</dt>
-<dd>data.</dd>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">frame_subtract</code><span class="sig-paren">(</span><em class="sig-param">minuend</em>, <em class="sig-param">subtrahend</em>, <em class="sig-param">file_path='.'</em>, <em class="sig-param">overwrite=False</em>, <em class="sig-param">display_in_ds9=False</em>, <em class="sig-param">write_to=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#frame_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.frame_subtract" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>This function subtracts one HDUList from another, and returns the resultant</dt><dd><p>data.</p>
+</dd>
 </dl>
 <p>This function expects a primary Header Data Unit and HDU extensions in a
 list. It can handle a single Primary HDU, but in that case expects a list
@@ -434,42 +388,38 @@ pyfits, as a filename string, or as an instance of pyds9.DS9. In the
 latter cases, the HDUlist will be opened from file or retrieved from DS9.
 It should be noted that DS9 will only pass a list of one HDU, the HDU
 that is loaded in the current frame.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>minuend: HDUList, filename, or DS9 instance</strong></dt>
-<dd><p class="first last">The source of the data to be subtracted from.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>minuend: HDUList, filename, or DS9 instance</strong></dt><dd><p>The source of the data to be subtracted from.</p>
 </dd>
-<dt><strong>subtrahend: HDUList, filename, or DS9 instance</strong></dt>
-<dd><p class="first last">The source of the data to be subtracted.</p>
+<dt><strong>subtrahend: HDUList, filename, or DS9 instance</strong></dt><dd><p>The source of the data to be subtracted.</p>
 </dd>
-<dt><strong>file_path: string, optional</strong></dt>
-<dd><p class="first last">The directory that contains the file names. Default is the current directory.</p>
+<dt><strong>file_path: string, optional</strong></dt><dd><p>The directory that contains the file names. Default is the current directory.</p>
 </dd>
-<dt><strong>display_in_ds9: bool, optional</strong></dt>
-<dd><p class="first last">If True, the result will be displayed in a Display instance of DS9,
+<dt><strong>overwrite: bool, optional</strong></dt><dd><p>If True, allows the output file to be overwritten if it already exists.
+Raises an OSError if False and the output file exists. Default is
+false.</p>
+</dd>
+<dt><strong>display_in_ds9: bool, optional</strong></dt><dd><p>If True, the result will be displayed in a Display instance of DS9,
 in a new frame. If the Display instance of DS9 is not already
 running, one will opened.</p>
 </dd>
-<dt><strong>write_to: str</strong></dt>
-<dd><p class="first last">Name of file to write result to. It will create a new file if one does not
-already exist. Due to inconsistencies between how python and SAOImage DS9 handles
-header data units, this is disallowed when DS9 is one or both of the sources.</p>
+<dt><strong>write_to: str</strong></dt><dd><p>Name of file to write result to. It will create a new file if one does not
+already exist. Due to inconsistencies between how python and SAOImage DS9
+handles header data units, this is disallowed when DS9 is one or both of
+the sources. The file will be saved to the same location as the source
+data, that is, the location specified by ‘path’.</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>difference:</strong></dt>
-<dd><p class="first last">array containing the data after subtraction</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>difference:</dt><dd><p>array containing the data after subtraction</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <p class="rubric">Examples</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">filename1</span> <span class="o">=</span> <span class="s1">&#39;/home/lee/Documents/k4m_160531_050920_ori.fits.fz&#39;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">filename2</span> <span class="o">=</span> <span class="s1">&#39;/home/lee/Documents/k4m_161228_132947_dri.fits.fz&#39;</span>
@@ -522,51 +472,57 @@ header data units, this is disallowed when DS9 is one or both of the sources.</p
 
 <dl class="function">
 <dt id="ccd_tools.get_ds9_region">
-<code class="descclassname">ccd_tools.</code><code class="descname">get_ds9_region</code><span class="sig-paren">(</span><em>ds9=None</em>, <em>bias_sec=None</em>, <em>get_data=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#get_ds9_region"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.get_ds9_region" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">get_ds9_region</code><span class="sig-paren">(</span><em class="sig-param">ds9=None</em>, <em class="sig-param">bias_sec=None</em>, <em class="sig-param">bias_keyword='BIASSEC'</em>, <em class="sig-param">get_data=True</em>, <em class="sig-param">verbose=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#get_ds9_region"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.get_ds9_region" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets the first single valid box region selected in ds9, and returns it as
 a Region object.</p>
-<p>This function requires that the region be selected and defined as a box.
+<p>This function will attempt to contact a running instance of DS9, and
+retrieve data from a selected region. If an instance of DS9 is not provided
+as an argument, it will attempt contanct the DS9 application automatically.
+This function requires that the region be selected and defined as a box.
 (see DS9) It stores the region data and the bias subtracted data in a
 region instance, as well as the region definition, source file, and
 dimensions of the region.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>ds9: DS9 object, optional</strong></dt>
-<dd><p class="first last">optional parameter to specify a DS9 target</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>ds9: DS9 object, optional</strong></dt><dd><p>Parameter to specify a DS9 target. If a target is not specified, it
+will attempt to connect automatically.</p>
 </dd>
-<dt><strong>get_data: bool, optional</strong></dt>
-<dd><p class="first last">If True, does not retrieve data from DS9. This to reduce the resource
+<dt><strong>get_data: bool, optional</strong></dt><dd><p>If True, does not retrieve data from DS9. This to reduce the resource
 requirements if data is being handled separately.</p>
 </dd>
-<dt><strong>bias_sec: array-like, optional</strong></dt>
-<dd><p class="first last">This must be a list, tuple, or array of four numbers that define the
+<dt><strong>bias_sec: array-like, optional</strong></dt><dd><p>This must be a list, tuple, or array of four numbers that define the
 bias section of the image, in the form (xmin, xmax, ymin, ymax). The
 numbers can be ints, floats, or strings that represent ints. If a float
 is given, it will be truncated towards zero. If None, the bias section
 will be retrieved from the header.</p>
 </dd>
-</dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>region: Region object</strong></dt>
-<dd></dd>
-</dl>
-</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>IndexError</strong></dt>
-<dd><p class="first last">If a region has not been selected in DS9, or the region selected is not
-a box.</p>
+<dt><strong>bias_keyword: string, optional</strong></dt><dd><p>The header keyword associated with the bias section data.</p>
+</dd>
+<dt><strong>verbose: bool, optional</strong></dt><dd><p>If True, data about the region is printed out. Also, more traceback is
+provided on the error associated with bad region selection. See the
+Raises section below.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>region: Region object</dt><dd></dd>
+</dl>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>RunTimeError</dt><dd><dl class="simple">
+<dt>If a region has not been selected in DS9, or the region selected is not</dt><dd><p>a box. This error is raised from a ValueError, so it could possibly
+hide other errors. Since this error is expected to be common, traceback
+on this error is partially suppressed by default. Set verbose to True
+if you want to see the full traceback.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
 <p class="rubric">Examples</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">ccd_tools</span> <span class="k">import</span> <span class="o">*</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">ds9</span> <span class="o">=</span> <span class="n">pyds9</span><span class="o">.</span><span class="n">DS9</span><span class="p">()</span>
@@ -596,77 +552,69 @@ a box.</p>
 <span class="go">       [5587, 5560, 5579, ..., 5526, 5560, 5519]], dtype=int32)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">testregion</span><span class="o">.</span><span class="n">bias_sub</span>
 <span class="go">array([[2146.10897334, 2129.10897334, 2145.10897334, ..., 2160.10897334,</span>
-<span class="go">       2169.10897334, 2205.10897334],</span>
+<span class="go">        2169.10897334, 2205.10897334],</span>
 <span class="go">       [2130.10897334, 2137.10897334, 2169.10897334, ..., 2157.10897334,</span>
-<span class="go">       2184.10897334, 2164.10897334],</span>
+<span class="go">        2184.10897334, 2164.10897334],</span>
 <span class="go">       [2203.10897334, 2182.10897334, 2228.10897334, ..., 2156.10897334,</span>
-<span class="go">       2200.10897334, 2194.10897334],</span>
+<span class="go">        2200.10897334, 2194.10897334],</span>
 <span class="go">       ...,</span>
 <span class="go">       [2230.10897334, 2194.10897334, 2257.10897334, ..., 2190.10897334,</span>
-<span class="go">       2221.10897334, 2187.10897334],</span>
+<span class="go">        2221.10897334, 2187.10897334],</span>
 <span class="go">       [2176.10897334, 2172.10897334, 2195.10897334, ..., 2187.10897334,</span>
-<span class="go">       2198.10897334, 2232.10897334],</span>
+<span class="go">        2198.10897334, 2232.10897334],</span>
 <span class="go">       [2229.10897334, 2202.10897334, 2221.10897334, ..., 2168.10897334,</span>
-<span class="go">       2202.10897334, 2161.10897334]])</span>
+<span class="go">        2202.10897334, 2161.10897334]])</span>
 </pre></div>
 </div>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.get_filenames">
-<code class="descclassname">ccd_tools.</code><code class="descname">get_filenames</code><span class="sig-paren">(</span><em>path='.'</em>, <em>extension=None</em>, <em>pattern=None</em>, <em>identifiers=None</em>, <em>include_path=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#get_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.get_filenames" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">get_filenames</code><span class="sig-paren">(</span><em class="sig-param">path='.'</em>, <em class="sig-param">extension=None</em>, <em class="sig-param">pattern=None</em>, <em class="sig-param">identifiers=None</em>, <em class="sig-param">include_path=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#get_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.get_filenames" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retrieves a list containing the filenames from a target directory.</p>
 <p>By default this retrieves all entries in the directory, hereafter referred
 to as filenames. Specific file types or folders can be retrieved by
 filtering by extension, a portion of the filename, or a list of
 identifiers. Also supports Regular Expression patterns.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>path: string or path-like object, optional</strong></dt>
-<dd><p class="first last">The path from which to retrieve the filepaths. Default behavior is to
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl>
+<dt><strong>path: string or path-like object, optional</strong></dt><dd><p>The path from which to retrieve the filepaths. Default behavior is to
 list the current directory.</p>
 </dd>
-<dt><strong>extension: string, optional</strong></dt>
-<dd><p class="first last">The extension of the filenames to be retrieved. This works by comparing
-the end of the entry names to the string specified, so it need not be
-an extension, merely the end of entry-name you wish to retrieve.</p>
+<dt><strong>extension: string, optional</strong></dt><dd><dl class="simple">
+<dt>The extension of the filenames to be retrieved. This works by comparing</dt><dd><p>the end of the entry names to the string specified, so it need not be</p>
 </dd>
-<dt><strong>pattern: string, optional</strong></dt>
-<dd><p class="first last">A pattern by which to filter what filenames and entries are returned. This
+</dl>
+<p>an extension, merely the end of entry-name you wish to retrieve.</p>
+</dd>
+<dt><strong>pattern: string, optional</strong></dt><dd><p>A pattern by which to filter what filenames and entries are returned. This
 can be the whole filename, or just a portion. Alternately, a Regular
 Expression can be provided. All entries that match in this fashion will be
 returned.</p>
 </dd>
-<dt><strong>identifiers: list or tuple, optional</strong></dt>
-<dd><p class="first last">Instead of a single string, a list of strings or numbers can be
+<dt><strong>identifiers: list or tuple, optional</strong></dt><dd><p>Instead of a single string, a list of strings or numbers can be
 provided. The list can contain whole filenames, or just portions of the
 filenames. If a number is passed, the number is converted to a string.
 This does not support Regular Expressions.</p>
 </dd>
-<dt><strong>include_path: bool, optional</strong></dt>
-<dd><p class="first last">If True, the filenames are returned with the path appended to them.</p>
+<dt><strong>include_path: bool, optional</strong></dt><dd><p>If True, the filenames are returned with the path appended to them.</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>filename_list: a list of strings that contain the filenames after filtering</strong></dt>
-<dd></dd>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>filename_list: a list of strings that contain the filenames after filtering</dt><dd></dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <div class="admonition seealso">
-<p class="first admonition-title">See also</p>
-<dl class="last docutils">
-<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">os.listdir</span></code></dt>
-<dd>returns the names of all entries in a directory</dd>
-<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">re</span></code></dt>
-<dd>module that supports regular expression matching operations for python</dd>
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">os.listdir</span></code></dt><dd><p>returns the names of all entries in a directory</p>
+</dd>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">re</span></code></dt><dd><p>module that supports regular expression matching operations for python</p>
+</dd>
 </dl>
 </div>
 <p class="rubric">Examples</p>
@@ -690,220 +638,188 @@ This does not support Regular Expressions.</p>
 
 <dl class="function">
 <dt id="ccd_tools.image_stats">
-<code class="descclassname">ccd_tools.</code><code class="descname">image_stats</code><span class="sig-paren">(</span><em>imdata</em>, <em>mask=None</em>, <em>sigma_clip=False</em>, <em>mask_sources=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#image_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.image_stats" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculates statistics on the background of the image data given.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>imdata: array-like</strong></dt>
-<dd><p class="first last">Data array of an image</p>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">image_stats</code><span class="sig-paren">(</span><em class="sig-param">imdata</em>, <em class="sig-param">mask=None</em>, <em class="sig-param">sigma_clip=False</em>, <em class="sig-param">mask_sources=False</em>, <em class="sig-param">verbose=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#image_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.image_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates statistics on the image data given.</p>
+<p>This function can mask sources, providing stats on the background. It can
+also ignore outliers in the pixel data using sigma clipping.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl>
+<dt><strong>imdata: array-like</strong></dt><dd><p>Data array of an image</p>
 </dd>
-<dt><strong>mask: numpy.ndarray (bool), optional</strong></dt>
-<dd><p class="first last">A boolean mask with the same shape as data, where a True value
+<dt><strong>mask: numpy.ndarray (bool), optional</strong></dt><dd><p>A boolean mask with the same shape as data, where a True value
 indicates the corresponding element of data is masked. Masked pixels
 are excluded when computing the statistics.</p>
 </dd>
-<dt><strong>mask_sources: bool, optional</strong></dt>
-<dd><p class="first last">If True, a source mask will be automatically generated using photutils.
-This source mask will be combined with any mask passed through the mask
-parameter. To set options for mask generation, generate a mask
+<dt><strong>mask_sources: bool, optional</strong></dt><dd><p>If True, a source mask will be automatically generated using photutils.
+This source mask will be combined with any mask passed through the mask</p>
+<blockquote>
+<div><p>parameter. To set options for mask generation, generate a mask
 separately, then pass it through the mask parameter.</p>
+</div></blockquote>
 </dd>
-<dt><strong>sigma_clip: bool, optional</strong></dt>
-<dd><p class="first last">If True, sigma clipped statistics will be returned using the function
+<dt><strong>sigma_clip: bool, optional</strong></dt><dd><p>If True, sigma clipped statistics will be returned using the function
 sigma_clipped_stats from astropy.stats</p>
 </dd>
-<dt><strong>kwargs: dict, optional</strong></dt>
-<dd><p class="first last">Keyword arguments to be passed to sigma_clipped_stats</p>
+<dt><strong>verbose: bool, optional</strong></dt><dd><p>If True, the minimum and maximum pixel values, as well as the mean,
+median, and standard deviation are all printed out.</p>
+</dd>
+<dt><strong>kwargs: dict, optional</strong></dt><dd><p>Keyword arguments to be passed to sigma_clipped_stats</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>mean, median, stddev: float</strong></dt>
-<dd><p class="first last">the mean, median, and standard deviation of the background</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>mean, median, stddev: float</dt><dd><p>the mean, median, and standard deviation of the background</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.make_source_mask">
-<code class="descclassname">ccd_tools.</code><code class="descname">make_source_mask</code><span class="sig-paren">(</span><em>indata</em>, <em>snr=2</em>, <em>npixels=5</em>, <em>display_mask=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#make_source_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.make_source_mask" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">make_source_mask</code><span class="sig-paren">(</span><em class="sig-param">indata</em>, <em class="sig-param">snr=2</em>, <em class="sig-param">npixels=5</em>, <em class="sig-param">display_mask=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#make_source_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.make_source_mask" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wrapper for the make_source_mask from photutils. Makes a mask corresponding
 to any flux sources in the data.</p>
 <p>make_source_mask is imported as part of the function call, so if the
 photutils package is not installed, or broken, it does not break the rest
 of this package.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>indata: array-like</strong></dt>
-<dd><p class="first last">2D image data array containing a flux source to be masked.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>indata: array-like</strong></dt><dd><p>2D image data array containing a flux source to be masked.</p>
 </dd>
-<dt><strong>snr: float, optional</strong></dt>
-<dd><p class="first last">Signal to noise ratio threshold above background to consider a pixel as
+<dt><strong>snr: float, optional</strong></dt><dd><p>Signal to noise ratio threshold above background to consider a pixel as
 being part of a source.</p>
 </dd>
-<dt><strong>npixels: int, optional</strong></dt>
-<dd><p class="first last">Minimum number of continuous pixels that are above the threshold that
+<dt><strong>npixels: int, optional</strong></dt><dd><p>Minimum number of continuous pixels that are above the threshold that
 an object must have to be considered a source.</p>
 </dd>
-<dt><strong>display_mask: bool, optional</strong></dt>
-<dd><p class="first last">If True, a figure displaying the generated mask is produced</p>
+<dt><strong>display_mask: bool, optional</strong></dt><dd><p>If True, a figure displaying the generated mask is produced</p>
 </dd>
-<dt><strong>kwargs: dict</strong></dt>
-<dd><p class="first last">Keyword arguments for the make_source_mask function. See documentation
+<dt><strong>kwargs: dict</strong></dt><dd><p>Keyword arguments for the make_source_mask function. See documentation
 for photutils.</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>bool_mask: ndarray, bool</strong></dt>
-<dd><p class="first last">A boolean mask that corresponds to the data input. Pixels that are part
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>bool_mask: ndarray, bool</dt><dd><p>A boolean mask that corresponds to the data input. Pixels that are part
 of a source are set to True.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
-<dt id="ccd_tools.sigma_clipped_frame_average">
-<code class="descclassname">ccd_tools.</code><code class="descname">sigma_clipped_frame_average</code><span class="sig-paren">(</span><em>filename_list</em>, <em>path='.'</em>, <em>writeto_filename=None</em>, <em>sigma=3.0</em>, <em>iters=5</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#sigma_clipped_frame_average"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.sigma_clipped_frame_average" title="Permalink to this definition">¶</a></dt>
-<dd><p>This function calculates a sigma clipped average of images stored in fits
-files, by accessing them via a list of filenames.</p>
+<dt id="ccd_tools.sigma_clipped_frame_stats">
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">sigma_clipped_frame_stats</code><span class="sig-paren">(</span><em class="sig-param">filename_list</em>, <em class="sig-param">path='.'</em>, <em class="sig-param">writeto_filename=None</em>, <em class="sig-param">overwrite=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#sigma_clipped_frame_stats"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.sigma_clipped_frame_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function returns a sigma-clipped mean, median and and standard
+deviation of images stored in fits files, by accessing them via a list of
+file names.</p>
 <p>This function averages frame data that has been stored on disk in fits
-files. It does so by taking a list of file names. If a file path is not
-specified, defaults to the current working directory. The result can be
-written to file by specifying a filename, and is saved to the same
-directory as the source files. This function presumes that each fits file
-contains a Header Data Unit with extensions: the averages are computed on a
-per extension basis, and returned as a list of data arrays.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>filename_list: list of strings</strong></dt>
-<dd><p class="first last">Strings containing the file names of the frames to be averaged.</p>
+files. It does so by taking a list of file names, and assumes that the
+frames are the same size. If a file path is not specified, it defaults to
+the current working directory. The result can be written to file by
+specifying a filename, and is saved to the same directory as the source
+files. This function presumes that each fits file contains a Header Data
+Unit with extensions. Data is taken from theHDUs, stacked, and the averages
+computed. This produces a list of data arrays corresponding to the HDU data
+arrays. If the image has only one HDU, it will return a list of one.</p>
+<p>The statistics are calculated using astropy.stats.sigma_clipped_stats. This
+function takes a particular section of the CCD, and stacks the data from
+all the images that correspond to that section, so that the vertical index
+corresponds to different images, and the two horizontal indices correspond
+to pixel coordinates.</p>
+<p>It then identifies outliers along the vertical axis, masks them using
+an iterative process, and then takes the mean, median, and std dev along
+the vertical axis. The std dev accounts for the change in degrees of
+freedom cause by the clipping.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename_list: list</strong></dt><dd><p>List of strings containing the file names of the frames to be averaged.</p>
 </dd>
-<dt><strong>path: str, optional</strong></dt>
-<dd><p class="first last">A string that contains the file path that contains the filenames given.
+<dt><strong>path: str, optional</strong></dt><dd><p>A string that contains the file path that contains the filenames given.
 Defaults to the current working directory.</p>
 </dd>
-<dt><strong>writeto_filename: str or None, optional</strong></dt>
-<dd><p class="first last">String that contains a file name to write the result to as HDU with
-extensions, in fits format. If None, does not write to file.</p>
+<dt><strong>writeto_filename: str or None, optional</strong></dt><dd><p>String that contains a file name to write the result to as HDU with
+extensions, in fits format. If None, does not write to file. The file
+will be saved to the same location as the source data, that is, the
+location specified by ‘path’.</p>
 </dd>
-<dt><strong>sigma: float, optional</strong></dt>
-<dd><p class="first last">The number of standard deviations to use for both the lower and upper
-clipping limit.</p>
+<dt><strong>overwrite: bool, optional</strong></dt><dd><p>If True, allows the output file to be overwritten if it already exists.
+Raises an OSError if False and the output file exists. Default is
+false.</p>
 </dd>
-<dt><strong>iters: int or None, optional</strong></dt>
-<dd><p class="first last">The number of iterations to perform sigma clipping, or None to clip
-until convergence is achieved (i.e., continue until the last iteration
-clips nothing).</p>
-</dd>
-<dt><strong>kwargs: dict, optional</strong></dt>
-<dd><p class="first last">keyword options for sigma clipping. See Astropy SigmaClip.</p>
+<dt><strong>kwargs: dict, optional</strong></dt><dd><p>A list of keyword arguments for setting options for the sigma clipping
+routine. This includes options such as sigma limits for clipping, the
+number of iterations, and what function is used to determine what are
+outliers. See astropy.stats.sigma_clipped_stats for more details.</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>frame_mean: list</strong></dt>
-<dd><p class="first last">A list of ndarrays containing image data after averaging</p>
 </dd>
-<dt><strong>pixel_error: list</strong></dt>
-<dd><p class="first last">A list of ndarrays containing the error on the average of each pixel.</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>clipped_mean_frame_list: list</dt><dd><p>A list of ndarrays containing sigma clipped average image data.</p>
 </dd>
-<dt><strong>pixel_tracker: list</strong></dt>
-<dd><p class="first last">A list of ndarrays containing how many data point were used to produce
-an average, on a pixel by pixel basis.</p>
+<dt>clipped_median_frame_list: list</dt><dd><p>A list of ndarrays containing sigma clipped median image data.</p>
+</dd>
+<dt>clipped_stddev_frame_list: list</dt><dd><p>A list of ndarrays containing sigma clipped standard deviation data.</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
-<p class="rubric">Notes</p>
-<p>Pixels are clipped by comparing the pixel to the standarddeviation of the
-image the pixel is in. How many data points are used to calculate the
-average is kept track of on a pixel basis, and is returned as a list of
-integer arrays that matches the list of image data arrays. If a particular
-pixel is clipped out in all images, the average of that pixel will be
-returned as zero. It’s corresponding location in the data points tracker
-will also be zero.</p>
-<p>Error is calculated by taking the average variance of the clipped image
-data, and dividing the result by the pixel tracker. This produces an array
-of the same shape as the original image, with entries containing variances
-on a pixel by pixel basis that have been reduced by the number of pixels
-used to calculate the average for that pixel. The elementwise square root
-of this array is returned as the error.</p>
-<p>Sigma clipping significantly increases the runtime. If you wish to
-eliminate defects such as cosmic rays, but do not want to wait for the
-sigma clipping to finish, consider using frame_median.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="function">
 <dt id="ccd_tools.sky_subtract">
-<code class="descclassname">ccd_tools.</code><code class="descname">sky_subtract</code><span class="sig-paren">(</span><em>im_data</em>, <em>mask=None</em>, <em>mask_sources=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#sky_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.sky_subtract" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">ccd_tools.</code><code class="sig-name descname">sky_subtract</code><span class="sig-paren">(</span><em class="sig-param">im_data</em>, <em class="sig-param">mask=None</em>, <em class="sig-param">mask_sources=True</em>, <em class="sig-param">verbose=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ccd_tools.html#sky_subtract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ccd_tools.sky_subtract" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a background (sky) subtracted copy of image data.</p>
 <p>Does so by calculating the mean, median and std of the background, and
 subtracting the mean from the input data. By default, this masks any sources
 and sigma clips.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><dl class="first docutils">
-<dt><strong>im_data</strong> <span class="classifier-delimiter">:</span> <span class="classifier">ndarray</span></dt>
-<dd><p class="first last">requires an image data array</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>im_data</strong><span class="classifier">ndarray</span></dt><dd><p>requires an image data array</p>
 </dd>
-<dt><strong>mask: ndarray (bool), optional</strong></dt>
-<dd><p class="first last">Boolean array the same size as im_data. Entries in im_data
-corresponding to True values in mask will be ignored in
+<dt><strong>mask: ndarray (bool), optional</strong></dt><dd><dl class="simple">
+<dt>Boolean array the same size as im_data. Entries in im_data</dt><dd><p>corresponding to True values in mask will be ignored in
 calculations.</p>
 </dd>
-<dt><strong>mask_sources: bool, optional</strong></dt>
-<dd><p class="first last">If True, a source mask is automatically generated using photutils. This
-option allows this feature to be disabled, in case photutils is not
+</dl>
+</dd>
+<dt><strong>mask_sources: bool, optional</strong></dt><dd><dl class="simple">
+<dt>If True, a source mask is automatically generated using photutils. This</dt><dd><p>option allows this feature to be disabled, in case photutils is not
 available, or not working correctly.</p>
 </dd>
-<dt><strong>kwargs: dict, optional</strong></dt>
-<dd><p class="first last">Keyword arguments to be passed to image_stats</p>
+</dl>
+</dd>
+<dt><strong>verbose: bool, optional</strong></dt><dd><p>A flag for diagnosing issues. If True, the max pixel, min pixel, mean,
+median, and standard deviation of the background will be printed. After
+the subtraction, those values will be recalculated and printed again.</p>
+</dd>
+<dt><strong>kwargs: dict, optional</strong></dt><dd><p>Keyword arguments to be passed to image_stats</p>
 </dd>
 </dl>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="first last docutils">
-<dt><strong>output_im: ndarray</strong></dt>
-<dd><p class="first last">The background subtracted data.</p>
 </dd>
-<dt><strong>stats: tuple</strong></dt>
-<dd><p class="first last">The mean, median, and standard deviation of the background</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>output_im: ndarray</dt><dd><p>The background subtracted data.</p>
+</dd>
+<dt>stats: tuple</dt><dd><p>The mean, median, and standard deviation of the background</p>
 </dd>
 </dl>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <div class="admonition seealso">
-<p class="first admonition-title">See also</p>
-<dl class="last docutils">
-<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">background_stats</span></code></dt>
-<dd>returns statistics on the background of image data</dd>
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">background_stats</span></code></dt><dd><p>returns statistics on the background of image data</p>
+</dd>
 </dl>
 </div>
 </dd></dl>
@@ -913,9 +829,9 @@ available, or not working correctly.</p>
 <div class="section" id="indices-and-tables">
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">
-<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
-<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
-<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
 </div>
 
@@ -945,17 +861,23 @@ available, or not working correctly.</p>
 </ul>
 </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
         </div>
       </div>
       <div class="clearer"></div>
@@ -964,8 +886,8 @@ available, or not working correctly.</p>
       &copy;2018, Lee Bernard.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.9</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
       <a href="_sources/index.rst.txt"
