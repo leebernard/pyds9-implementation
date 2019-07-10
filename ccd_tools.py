@@ -1146,7 +1146,7 @@ def get_ds9_region(ds9=None, bias_sec=None, bias_keyword='BIASSEC', get_data=Tru
             try:
                 datasec = pattern.findall(hdu.header['DATASEC'])
             except KeyError as err:
-                message = str(err) + ' Unable to validate region.\nRegion may exceed image bounds'
+                message = str(err) + ' Unable to determine the size of the image data.\nRegion may exceed image bounds'
                 warnings.warn(message, category=UserWarning)
             else:
                 # print('Data section: ', datasec)
