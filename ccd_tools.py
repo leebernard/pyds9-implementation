@@ -21,6 +21,9 @@ frame_average(filename_list, path='.', writeto_filename=None, overwrite=False):
 frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
     Takes the per-pixel median of a set of image data, from file. Intended
     to be a more robust version of frame_average.
+sigma_clipped_frame_stats(filename_list, path='.', writeto_filename=None, overwrite=False, **kwargs)
+    This returns the sigma clipped mean, median, and std dev of a stack of
+    data, taken along the stack axis.
 frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_in_ds9=False, write_to=None):
     Subtracts image data frame by frame, either from file or from DS9
 get_ds9_region(ds9=None, bias_sec=None, get_data=True):
@@ -31,9 +34,6 @@ image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, **kwargs):
     Returns stats on image data.
 make_source_mask(indata, snr=2, npixels=5, display_mask=False, **kwargs):
     Generates and returns a source mask from image data.
-sigma_clipped_frame_average(filename_list, path='.', writeto_filename=None, overwrite=False, sigma=3.0, iters=5, **kwargs):
-    Takes the average of a set of image data from file, with outliers
-    clipped.
 sky_subtract(im_data, mask=None, mask_sources=True, **kwargs):
     Returns the sky background subtracted image data
 """
@@ -402,7 +402,15 @@ def _write_average_data_to_file(data_list, writeto_filename, source_filename_lis
             for filename in source_filename_list:
                 hdu.header.add_comment(filename)
 
-    hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
+    try:
+        hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=overwrite)
+    except OSError as write_error:
+        print(write_error)
+        userinput = input('do you wish to overwrite? (y/n)')
+        if userinput == ('y' or'Y' or 'yes' or 'Yes'):
+            hdulcopy.writeto(file_path + '/' + writeto_filename, overwrite=True)
+        else:
+            print('File not saved.')
 
 
 def _write_difference_to_file(data_list, writeto_filename, minuend_hdul, file_path='.', overwrite=False, comment_string=None):
@@ -660,6 +668,66 @@ def frame_average(filename_list, path='.', writeto_filename=None, overwrite=Fals
         return _frame_mean(image_stack)
 
 
+def frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
+    """
+    This function returns the median of several frames.
+
+    The frames are accessed from disk, by passing the file names. If a file
+    path is not specified, defaults to current working directory. The result
+    can be written to a fits file by specifying a file name, and is saved to
+    the same directory as the source files. This function presumes that each
+    fits file contains a Header Data Unit with extensions. The data is stacked,
+    and the median calculated on a per pixel basis. The median is intended to
+    be a fast way of getting a bias frame, with some robustness against any
+    outliers like cosmic rays.
+
+    The error is calculated by finding the standard error on the mean, and
+    multiplying by 1.253. Note that this only gives accurate error estimates
+    for data that is normally distributed. This should be kept in mind when
+    reviewing errors on data sets that contain outliers.
+
+    Parameters
+    ----------
+    filename_list: list
+        List of strings containing the file names of the frames to be averaged.
+    path: str, optional
+        A string that contains the file path for the file names given. Defaults
+        to the current working directory.
+    writeto_filename: str or None, optional
+        String that contains a file name to write the result to as HDU with
+        extensions, in fits format. If None, does not write to file. The file
+        will be saved to the same location as the source data, that is, the
+        location specified by \'path\'.
+    overwrite: bool, optional
+        If True, allows the output file to be overwritten if it already exists.
+        Raises an OSError if False and the output file exists. Default is
+        false.
+
+    Returns
+    -------
+    frame_median: list
+        A list of ndarrays containing image data after taking the median.
+    pixel_error: list
+        A list of ndarrays corresponding to frame_median, that contains the
+        per-pixel error on the average.
+    """
+
+    with ExitStack() as fits_stack:
+        hdul_list = [fits_stack.enter_context(fits.open(path + '/' + fits_name)) for fits_name in filename_list]
+        image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
+
+    if writeto_filename is not None:
+        frame_median_data, frame_median_error = _frame_median(image_stack)
+        comment_string = 'Changed data to the median of' + str(len(filename_list)) + \
+                         'zero frames, of which this is the first'
+
+        _write_average_data_to_file(frame_median_data, writeto_filename, source_filename_list=filename_list,
+                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
+        return frame_median_data, frame_median_error
+    else:
+        return _frame_median(image_stack)
+
+
 def sigma_clipped_frame_stats(filename_list, path='.', writeto_filename=None, overwrite=False, **kwargs):
     """
     This function returns a sigma-clipped mean, median and and standard
@@ -735,66 +803,6 @@ def sigma_clipped_frame_stats(filename_list, path='.', writeto_filename=None, ov
         return clipped_mean_frame_list, clipped_median_frame_list, clipped_stddev_frame_list
     else:
         return _sigma_clipped_frame_stats(image_stack, **kwargs)
-
-
-def frame_median(filename_list, path='.', writeto_filename=None, overwrite=False):
-    """
-    This function returns the median of several frames.
-
-    The frames are accessed from disk, by passing the file names. If a file
-    path is not specified, defaults to current working directory. The result
-    can be written to a fits file by specifying a file name, and is saved to
-    the same directory as the source files. This function presumes that each
-    fits file contains a Header Data Unit with extensions. The data is stacked,
-    and the median calculated on a per pixel basis. The median is intended to
-    be a fast way of getting a bias frame, with some robustness against any
-    outliers like cosmic rays.
-
-    The error is calculated by finding the standard error on the mean, and
-    multiplying by 1.253. Note that this only gives accurate error estimates
-    for data that is normally distributed. This should be kept in mind when
-    reviewing errors on data sets that contain outliers.
-
-    Parameters
-    ----------
-    filename_list: list
-        List of strings containing the file names of the frames to be averaged.
-    path: str, optional
-        A string that contains the file path for the file names given. Defaults
-        to the current working directory.
-    writeto_filename: str or None, optional
-        String that contains a file name to write the result to as HDU with
-        extensions, in fits format. If None, does not write to file. The file
-        will be saved to the same location as the source data, that is, the
-        location specified by \'path\'.
-    overwrite: bool, optional
-        If True, allows the output file to be overwritten if it already exists.
-        Raises an OSError if False and the output file exists. Default is
-        false.
-
-    Returns
-    -------
-    frame_median: list
-        A list of ndarrays containing image data after taking the median.
-    pixel_error: list
-        A list of ndarrays corresponding to frame_median, that contains the
-        per-pixel error on the average.
-    """
-
-    with ExitStack() as fits_stack:
-        hdul_list = [fits_stack.enter_context(fits.open(path + '/' + fits_name)) for fits_name in filename_list]
-        image_stack = [[hdu.data for hdu in hdul if hdu.data is not None] for hdul in hdul_list]
-
-    if writeto_filename is not None:
-        frame_median_data, frame_median_error = _frame_median(image_stack)
-        comment_string = 'Changed data to the median of' + str(len(filename_list)) + \
-                         'zero frames, of which this is the first'
-
-        _write_average_data_to_file(frame_median_data, writeto_filename, source_filename_list=filename_list,
-                                    file_path=path, overwrite=overwrite, comment_string=comment_string)
-        return frame_median_data, frame_median_error
-    else:
-        return _frame_median(image_stack)
 
 
 def frame_subtract(minuend, subtrahend, file_path='.', overwrite=False, display_in_ds9=False, write_to=None):
@@ -1138,7 +1146,7 @@ def get_ds9_region(ds9=None, bias_sec=None, bias_keyword='BIASSEC', get_data=Tru
             try:
                 datasec = pattern.findall(hdu.header['DATASEC'])
             except KeyError as err:
-                message = str(err) + ' Unable to validate region.\nRegion may exceed image bounds'
+                message = str(err) + ' Unable to determine the size of the image data.\nRegion may exceed image bounds'
                 warnings.warn(message, category=UserWarning)
             else:
                 # print('Data section: ', datasec)
@@ -1339,9 +1347,13 @@ def image_stats(imdata, mask=None, sigma_clip=False, mask_sources=False, verbose
     # apply the mask. If the mask is None, this effectively does nothing
     masked_data = np.ma.array(imdata, mask=mask)
     if sigma_clip:
-        mean, median, std = sigma_clipped_stats(masked_data, **kwargs)
-    else:
-        mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
+        # creat sigma clipping filter
+        filter = SigmaClip(**kwargs)
+        # mask the outliers
+        masked_data = filter(masked_data)
+
+    # calculate stats
+    mean, median, std = np.ma.mean(masked_data), np.ma.median(masked_data), np.ma.std(masked_data)
 
     if verbose:
         print(f'Min pixel value: {np.min(masked_data):.2f}')
