@@ -56,6 +56,8 @@ clipped_darkcurrent_frames = [sigma_clip(frame, sigma=4.0) for frame in darkcurr
 clipped_darkcurrent_rate = [np.mean(foo[0])/foo[1] for foo in zip(clipped_darkcurrent_frames, exposure_time)]
 plt.scatter(exposure_time, clipped_darkcurrent_rate)
 
+
+'''histogram a sample 240 exposure, see if I can isolate the two different dark currents'''
 plt.figure()
 plt.hist(darkcurrent_frames[4].flatten(), bins=100, range=(darkcurrent_frames[4].min(), 2000))
 
@@ -86,4 +88,7 @@ primary_pixels_total = clipped_darkcurrent_frames[4].count()
 
 print('fraction of pixels that have primary dc value:', primary_pixels_total/clipped_secondary_darkcurrent.size)
 print('fraction of pixels that has secondary dc value:', secondary_pixels_total/clipped_secondary_darkcurrent.size)
+
+'''okay, lets do it again, but with the 5 frames stacked and averaged, to reduce noise'''
+
 
