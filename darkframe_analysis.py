@@ -14,6 +14,9 @@ from astropy.stats import sigma_clip
 Starting out with -25 C
 '''
 
+# use the gain published by Andor for 1MHz, 3.32 e-/ADC
+gain = 3.32
+
 # retrieve everything from the bias directory, ignoring files that are not fits
 bias_path = '/home/lee/Data/darkcurrent_25c/bias_frames'
 bias_files = get_filenames(bias_path, extension='.fits')
@@ -43,8 +46,6 @@ for filename in darkcurrent_filenames:
 # subtract off the bias
 darkcurrent_frames = [frame - bias_25c for frame in darkcurrent_frames]
 # convert to e- from ADC
-# use the gain published by Andor for 1MHz, 3.32 e-/ADC
-gain = 3.32
 darkcurrent_frames = [frame*gain for frame in darkcurrent_frames]
 
 # calculate naive dark current rate, and plot it
@@ -90,5 +91,49 @@ print('fraction of pixels that have primary dc value:', primary_pixels_total/cli
 print('fraction of pixels that has secondary dc value:', secondary_pixels_total/clipped_secondary_darkcurrent.size)
 
 '''okay, lets do it again, but with the 5 frames stacked and averaged, to reduce noise'''
+
+# pull the 240 data
+path_240 = '/home/lee/Data/darkcurrent_25c/240s_exposure'
+filenames_240 = get_filenames(path_240, extension='.fits')
+
+# take the average of the frames, in counts
+darkcurrent_240_average, _, _ = sigma_clipped_frame_stats(filenames_240, path=path_240, sigma=4.0)
+
+# bias subtract, and then transform to e- from adc
+darkcurrent_240_average = (darkcurrent_240_average - bias_25c)*gain
+
+# show the histogram of the average dark current
+plt.figure('dark current histrogram at 240s, -25c')
+plt.hist(darkcurrent_240_average.flatten(), bins=120, range=(darkcurrent_240_average.min(), 2000))
+
+# now sigma clip the data, to show the primary
+primary_darkcurrent = sigma_clip(darkcurrent_240_average, sigma=4.0)
+plt.figure('primary dark current')
+plt.hist(primary_darkcurrent.compressed(), bins=120, range=(darkcurrent_240_average.min(), 2000))
+
+# flip the mask, and histogram it
+leftovers = np.ma.array(primary_darkcurrent.data, mask=~primary_darkcurrent.mask)
+plt.figure('what is left over after removing the primary dark current pixels')
+plt.hist(leftovers.compressed(),  bins=120, range=(darkcurrent_240_average.min(), 2000))
+
+# clip out the extra stuff.
+secondary_darkcurrent = sigma_clip(secondary_darkcurrent, sigma=2.0)
+plt.figure('secondary dark current')
+plt.hist(clipped_secondary_darkcurrent.compressed(),  bins=120, range=(darkcurrent_240_average.min(), 2000))
+
+print('average taken at -25c, 240s exposure')
+print('primary dark current:', np.mean(primary_darkcurrent)/240)
+print('secondary dark current:', np.mean(clipped_secondary_darkcurrent)/240)
+
+# ratio of primary dc pixels to secondary dc pixels
+# assume area under the gaussian curve is equal to number of pixels
+# correct for the area that has been clipped out in the secondary dark current
+# 2 sigma --> .954 of total area
+secondary_pixels_total = clipped_secondary_darkcurrent.count()/.954
+# for the primary dc, sigma is 4 --> about 1.00 of total area
+primary_pixels_total = primary_darkcurrent.count()
+
+print('fraction of pixels that have primary dc value:', primary_pixels_total/clipped_secondary_darkcurrent.size)
+print('fraction of pixels that has secondary dc value:', secondary_pixels_total/clipped_secondary_darkcurrent.size)
 
 
