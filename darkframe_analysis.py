@@ -51,8 +51,14 @@ darkcurrent_frames = [frame*gain for frame in darkcurrent_frames]
 darkcurrent_rate = [np.mean(foo[0])/foo[1] for foo in zip(darkcurrent_frames, exposure_time)]
 plt.scatter(exposure_time, darkcurrent_rate)
 
-# calculate the sigma clipped dark current rate
+# calculate the sigma clipped dark current rate, and plot it
 clipped_darkcurrent_frames = [sigma_clip(frame, sigma=4.0) for frame in darkcurrent_frames]
 clipped_darkcurrent_rate = [np.mean(foo[0])/foo[1] for foo in zip(clipped_darkcurrent_frames, exposure_time)]
+plt.scatter(exposure_time, clipped_darkcurrent_rate)
 
+plt.figure()
+plt.hist(darkcurrent_frames[4].flatten(), bins=100, range=(darkcurrent_frames[4].min(), 2000))
+
+plt.figure()
+plt.hist(clipped_darkcurrent_frames[4].compressed(), bins=100, range=(darkcurrent_frames[4].min(), 2000))
 
