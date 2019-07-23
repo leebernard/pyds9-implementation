@@ -35,5 +35,19 @@ for sub_dir in sub_dir_list:
     sub_dir_filenames.append(get_filenames(sub_dir, extension='.fits', include_path=True))
 
 # print to check the output
-for filename_list in sub_dir_filenames: print(filename_list)
+for filename_list in sub_dir_filenames:
+    print(filename_list)
+
+# open an instance of DS9, to select a fairly flat region of data
+ds9 = pyds9.DS9(target='illumination-display', start='-title illumination-display')
+pyds9.ds9_targets()
+# open one of the files. the filename list is semi-random, so just grab the first entry
+ds9.set('fits '+ sub_dir_filenames[0][0])
+# in DS9, make a box region that avoids the edges of the image, to avoid any sort of trail-off or other edge
+# weirdness. Make sure that this region is flat to within a factor of two
+input('Pause while you select data. Press enter to continue')
+
+
+selection = get_ds9_region(ds9, get_data=False)
+
 
