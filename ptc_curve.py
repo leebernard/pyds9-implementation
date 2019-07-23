@@ -24,5 +24,16 @@ bias_files = get_filenames(bias_path, extension='.fits')
 bias_mean, bias_median, stacked_bias_stddev = sigma_clipped_frame_stats(bias_files, path=bias_path, sigma=4.0)
 master_bias_frame = bias_mean[0]
 
+sub_dir_list = get_filenames(main_path, extension='exposure', include_path=True)
+print(sub_dir_list)  # print to check the output
 
+# this makes a list of lists, with each entry in the outer list corresponding to a
+# subdirectory, and each inner list being the file names withing that subdirectory
+sub_dir_filenames = []
+for sub_dir in sub_dir_list:
+    # retrieve the filenames, checking the extension to make sure
+    sub_dir_filenames.append(get_filenames(sub_dir, extension='.fits', include_path=True))
+
+# print to check the output
+for filename_list in sub_dir_filenames: print(filename_list)
 
