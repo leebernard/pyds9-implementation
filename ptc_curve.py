@@ -50,4 +50,21 @@ input('Pause while you select data. Press enter to continue')
 
 selection = get_ds9_region(ds9, get_data=False)
 
+# check the average of the selected region
+for filename_list in sub_dir_filenames:
+    print('-----------------------------------------------------')
+    print(filename_list)
+    print('Naive Average')
+    for file in filename_list:
+        with fits.open(file) as hdul:
+            print(np.mean(hdul[0].data))
+            # selected_data = hdul[0].data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
+            # print(np.mean(selected_data))
+
+for exposure in sub_dir_filenames:
+    with fits.open(exposure[0])  as frame1:
+        with fits.open(exposure[1]) as frame2:
+            frame_diff = frame1 - frame2  # order of subtraction is arbitrary
+
+
 
