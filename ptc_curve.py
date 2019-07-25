@@ -10,12 +10,9 @@ filters both reduce illumination, and make the illumination more even.
 from ccd_tools import *
 from astropy.stats import sigma_clip
 
-'''
-how about -40c
-'''
 
 # retrieve everything from the bias directory, ignoring files that are not fits
-main_path = '/home/lee/Data/illumination_data'
+main_path = '/home/lee/Data/illumination_data_3'
 
 bias_path = main_path + '/bias_frames'
 bias_files = get_filenames(bias_path, extension='.fits')
@@ -39,7 +36,7 @@ for filename_list in sub_dir_filenames:
     print(filename_list)
 
 # open an instance of DS9, to select a fairly flat region of data
-ds9 = pyds9.DS9(target='illumination-display', start='-title illumination-display')
+ds9 = pyds9.DS9(target='display')
 pyds9.ds9_targets()
 # open one of the files. the filename list is semi-random, so just grab the first entry
 ds9.set('fits '+ sub_dir_filenames[0][0])
@@ -57,14 +54,42 @@ for filename_list in sub_dir_filenames:
     print('Naive Average')
     for file in filename_list:
         with fits.open(file) as hdul:
-            print(np.mean(hdul[0].data))
-            # selected_data = hdul[0].data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
-            # print(np.mean(selected_data))
+            # print(np.mean(hdul[0].data))
+            selected_data = hdul[0].data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
+            print(np.mean(selected_data))
 
+variance = []
+signal = []
+gain = []
 for exposure in sub_dir_filenames:
-    with fits.open(exposure[0])  as frame1:
+    with fits.open(exposure[0]) as frame1:
         with fits.open(exposure[1]) as frame2:
-            frame_diff = frame1 - frame2  # order of subtraction is arbitrary
+            # bias subtract the frame
+            frame1_data = frame1[0].data.astype('float32') - master_bias_frame
+            frame2_data = frame2[0].data.astype('float32') - master_bias_frame
+
+            # crop the data down to what was selected
+            frame1_data = frame1_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
+            frame2_data = frame2_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
+
+            frame_diff = frame1_data- frame2_data  # order of subtraction is arbitrary
+            frame_var = np.var(frame_diff)
+            frame_signal = np.median(np.asarray([frame1_data, frame2_data]))
+
+            # # display the frame difference
+            # display_data(frame_diff)
+            # # histogram the frame difference
+            # plt.figure(exposure[0])
+            # plt.hist(frame_diff.flatten(), bins=100)
+            # plt.show()
+            # store signal
+            signal.append(frame_signal)
+            # store variance
+            variance.append(frame_var)
+            # store calculated gain, gain=signal/var
+            gain.append(frame_signal/frame_var)
+
+
 
 
 
