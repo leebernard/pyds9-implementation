@@ -68,9 +68,9 @@ for exposure in sub_dir_filenames:
             frame1_data = frame1[0].data.astype('float32') - master_bias_frame
             frame2_data = frame2[0].data.astype('float32') - master_bias_frame
 
-            # crop the data down to what was selected
-            frame1_data = frame1_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
-            frame2_data = frame2_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax]
+            # crop the data down to what was selected, and sigma clip it
+            frame1_data = sigma_clip(frame1_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=3.0)
+            frame2_data = sigma_clip(frame2_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=3.0)
 
             frame_diff = frame1_data- frame2_data  # order of subtraction is arbitrary
             frame_var = np.var(frame_diff)
@@ -78,18 +78,22 @@ for exposure in sub_dir_filenames:
 
             # # display the frame difference
             # display_data(frame_diff)
-            # # histogram the frame difference
-            # plt.figure(exposure[0])
-            # plt.hist(frame_diff.flatten(), bins=100)
-            # plt.show()
+            # histogram the frame difference
+            plt.figure(exposure[0])
+            plt.hist(frame_diff.flatten(), bins=100)
+            plt.figure(exposure[0] + 'signal')
+            plt.hist(frame1_data.flatten(), bins=100)
+            plt.show()
+
             # store signal
             signal.append(frame_signal)
             # store variance
             variance.append(frame_var)
-            # store calculated gain, gain=signal/var
-            gain.append(frame_signal/frame_var)
+            # store calculated gain, gain=signal/var * sqrt(2)
+            gain.append(frame_signal/frame_var * np.sqrt(2))
 
-
+plt.figure('gain vs signal')
+plt.scatter(signal, gain)
 
 
 
