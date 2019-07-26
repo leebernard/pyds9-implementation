@@ -72,7 +72,7 @@ for exposure in sub_dir_filenames:
             frame1_data = sigma_clip(frame1_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=5.0)
             frame2_data = sigma_clip(frame2_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=5.0)
 
-            frame_diff = frame1_data- frame2_data  # order of subtraction is arbitrary
+            frame_diff = frame1_data - frame2_data  # order of subtraction is arbitrary
             frame_var = np.var(frame_diff)
             frame_signal = np.median(np.asarray([frame1_data, frame2_data]))
 
