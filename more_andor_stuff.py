@@ -34,3 +34,39 @@ master_bias_frame = bias_mean[0]
 
 sub_dir_list = get_filenames(main_path, extension='exposure', include_path=True)
 print(sub_dir_list)  # print to check the output
+
+# this makes a list of lists, with each entry in the outer list corresponding to a
+# subdirectory, and each inner list being the file names withing that subdirectory
+sub_dir_filenames = []
+for sub_dir in sub_dir_list:
+    # retrieve the filenames, checking the extension to make sure
+    sub_dir_filenames.append(get_filenames(sub_dir, extension='.fits', include_path=True))
+
+# print to check the output
+for filename_list in sub_dir_filenames:
+    print(filename_list)
+
+
+# open an instance of DS9, to select a fairly flat region of data
+ds9 = pyds9.DS9(target='display')
+pyds9.ds9_targets()
+
+# in DS9, make a box region that avoids the edges of the image, to avoid any sort of trail-off or other edge
+# weirdness. Make sure that this region is flat to within a factor of two
+input('Pause while you select data. Press enter to continue')
+
+
+selection = get_ds9_region(ds9, get_data=False)
+
+# check the average of the selected region
+for filename_list in sub_dir_filenames:
+    print('-----------------------------------------------------')
+    print(filename_list)
+    print('Naive Average')
+    for file in filename_list:
+        with fits.open(file) as hdul:
+            # print(np.mean(hdul[0].data))
+            selected_data = hdul[0].data[selection.ymin:selection.ymax, selection.xmin:selection.xmax]
+            print(np.mean(selected_data))
+
+
