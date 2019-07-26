@@ -99,17 +99,17 @@ for exposure in sub_dir_filenames:
                 frame_signal = np.median(np.asarray([frame1_data, frame2_data]))
 
                 # diagnostic stuff
-                print('differential average:', np.mean(frame_diff))
+                # print('differential average:', np.mean(frame_diff))
                 # print('fraction of signal:', np.mean(frame_diff)/frame_signal)
-                print('expected error:', np.sqrt(frame_var/frame_diff.size))
+                # print('expected error:', np.sqrt(frame_var/frame_diff.size))
                 # # display the frame difference
                 # display_data(frame_diff)
                 # histogram the frame difference
-                # plt.figure(exposure[0])
-                # plt.hist(frame_diff.flatten(), bins=90)
-                # plt.figure(exposure[0] + 'signal')
-                # plt.hist(frame1_data.flatten(), bins=100)
-                # plt.show()
+                plt.figure(exposure[n])
+                plt.hist(frame_diff.flatten(), bins=np.arange(-350.5, 350.5, step=1))
+                plt.figure(exposure[n] + 'signal')
+                plt.hist(frame1_data.flatten(), bins=np.arange(-350.5, 350.5, step=1) + 3800)
+                plt.show()
 
                 # store signal
                 signal.append(frame_signal)
@@ -117,6 +117,7 @@ for exposure in sub_dir_filenames:
                 variance.append(frame_var)
                 # store calculated gain, gain=signal/var * sqrt(2)
                 gain.append(frame_signal/frame_var * np.sqrt(2))
+
 
 plt.figure('gain vs signal')
 plt.scatter(signal, gain)
