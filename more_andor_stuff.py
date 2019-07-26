@@ -70,3 +70,47 @@ for filename_list in sub_dir_filenames:
             print(np.mean(selected_data))
 
 
+variance = []
+signal = []
+gain = []
+for exposure in sub_dir_filenames:
+    for n, file in enumerate(exposure):
+        with fits.open(exposure[n]) as frame1:
+            with fits.open(exposure[n-1]) as frame2:
+                # bias subtract the frame
+                frame1_data = frame1[0].data.astype('float32') - master_bias_frame
+                frame2_data = frame2[0].data.astype('float32') - master_bias_frame
+
+                # crop the data down to what was selected, and sigma clip it
+                frame1_data = sigma_clip(frame1_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=5.0)
+                frame2_data = sigma_clip(frame2_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=5.0)
+
+                frame_diff = frame1_data - frame2_data  # order of subtraction is arbitrary
+                frame_var = np.var(frame_diff)
+                frame_signal = np.median(np.asarray([frame1_data, frame2_data]))
+
+                # diagnostic stuff
+                print('differential average:', np.mean(frame_diff))
+                # print('fraction of signal:', np.mean(frame_diff)/frame_signal)
+                print('expected error:', np.sqrt(frame_var/frame_diff.size))
+                # # display the frame difference
+                # display_data(frame_diff)
+                # histogram the frame difference
+                # plt.figure(exposure[0])
+                # plt.hist(frame_diff.flatten(), bins=90)
+                # plt.figure(exposure[0] + 'signal')
+                # plt.hist(frame1_data.flatten(), bins=100)
+                # plt.show()
+
+                # store signal
+                signal.append(frame_signal)
+                # store variance
+                variance.append(frame_var)
+                # store calculated gain, gain=signal/var * sqrt(2)
+                gain.append(frame_signal/frame_var * np.sqrt(2))
+
+plt.figure('gain vs signal')
+plt.scatter(signal, gain)
+
+plt.figure('ptc')
+plt.scatter(signal, variance)
