@@ -32,6 +32,15 @@ print(sigma_clipped_stats(bias_frame6, sigma=4.0))
 bias_mean, bias_median, stacked_bias_stddev = sigma_clipped_frame_stats(bias_files, path=bias_path, sigma=4.0)
 master_bias_frame = bias_mean[0]
 
+# display a histogram of the master bias file
+plt.figure('master bias frame')
+plt.hist(master_bias_frame.flatten(), bins=100, range=(480, 600))
+
+# show what is not part of the gaussian
+clipped_master_bias = sigma_clip(master_bias_frame, sigma=4.0)
+leftovers = np.ma.array(clipped_master_bias.data, mask=~clipped_master_bias.mask)
+print('number of clipped pixels:', leftovers.compressed().size)
+
 sub_dir_list = get_filenames(main_path, extension='exposure', include_path=True)
 print(sub_dir_list)  # print to check the output
 
