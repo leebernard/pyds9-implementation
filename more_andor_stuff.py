@@ -9,6 +9,7 @@ filters both reduce illumination, and make the illumination more even.
 
 from ccd_tools import *
 from astropy.stats import sigma_clip
+from scipy.stats import norm
 
 
 # retrieve everything from the bias directory, ignoring files that are not fits
@@ -68,6 +69,8 @@ input('Pause while you select data. Press enter to continue')
 selection = get_ds9_region(ds9, get_data=False)
 
 # check the average of the selected region
+# while I'm at it, extract the data into a list
+region_data = []
 for filename_list in sub_dir_filenames:
     print('-----------------------------------------------------')
     print(filename_list)
@@ -75,10 +78,27 @@ for filename_list in sub_dir_filenames:
     for file in filename_list:
         with fits.open(file) as hdul:
             # print(np.mean(hdul[0].data))
-            selected_data = hdul[0].data[selection.ymin:selection.ymax, selection.xmin:selection.xmax]
+            data_frame = hdul[0].data - master_bias_frame
+            selected_data = data_frame[selection.ymin:selection.ymax, selection.xmin:selection.xmax]
+            region_data.append(selected_data)
             print(np.mean(selected_data))
 
+# check the data for patterns
+region_stack = np.stack(region_data)
+median_region = np.median(region_stack, axis=0)
+plt.figure('median of the region data')
+plt.hist(median_region.flatten(), bins=np.arange(-300.5, 300.5, step=1) + 3801)
+plt.title('Median of the region stack\n binned from 3500.5 to 4100.5')
+plt.figure('median of the region data, different bins')
+plt.hist(median_region.flatten(), bins=np.arange(-300, 300, step=1) + 3800)
+plt.title('Median of the region stack\n binned from 3500 to 4100')
+plt.figure('single region data')
+plt.hist(region_data[0].flatten(), bins=np.arange(-300, 300, step=1) + 3800)
+plt.title('One of the regions, pulled from the stack\n binned from 3500 to 4100')
 
+
+# done with analyzing for meta patterns
+# now pull the signal analysis: variance, signal level, and calculated gain
 variance = []
 signal = []
 gain = []
@@ -91,8 +111,8 @@ for exposure in sub_dir_filenames:
                 frame2_data = frame2[0].data.astype('float32') - master_bias_frame
 
                 # crop the data down to what was selected, and sigma clip it
-                frame1_data = sigma_clip(frame1_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=5.0)
-                frame2_data = sigma_clip(frame2_data[selection.xmin:selection.xmax, selection.ymin:selection.ymax], sigma=5.0)
+                frame1_data = sigma_clip(frame1_data[selection.ymin:selection.ymax, selection.xmin:selection.xmax], sigma=5.0)
+                frame2_data = sigma_clip(frame2_data[selection.ymin:selection.ymax, selection.xmin:selection.xmax], sigma=5.0)
 
                 frame_diff = frame1_data - frame2_data  # order of subtraction is arbitrary
                 frame_var = np.var(frame_diff)
@@ -104,9 +124,18 @@ for exposure in sub_dir_filenames:
                 # print('expected error:', np.sqrt(frame_var/frame_diff.size))
                 # # display the frame difference
                 # display_data(frame_diff)
+
                 # histogram the frame difference
                 plt.figure(exposure[n])
                 plt.hist(frame_diff.flatten(), bins=np.arange(-350.5, 350.5, step=1))
+                # add the fit of a guassian to this
+                gmean, gstd = norm.fit(frame_diff.compressed())
+                xmin, xmax = plt.xlim()
+                x = np.linspace(xmin, xmax, 1000)
+                y = norm.pdf(x, gmean, gstd)
+                plt.plot(x, y)
+
+                # histogram one of the frames
                 plt.figure(exposure[n] + 'signal')
                 plt.hist(frame1_data.flatten(), bins=np.arange(-350.5, 350.5, step=1) + 3800)
                 plt.show()
