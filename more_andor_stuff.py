@@ -127,9 +127,11 @@ for exposure in sub_dir_filenames:
 
                 # histogram the frame difference
                 plt.figure(exposure[n])
-                plt.hist(frame_diff.flatten(), bins=np.arange(-350.5, 350.5, step=1))
+                plt.hist(frame_diff.compressed(), bins=np.arange(-350.5, 350.5, step=1), density=True)
                 # add the fit of a guassian to this
                 gmean, gstd = norm.fit(frame_diff.compressed())
+                print('norm fit parameters:', gmean, gstd)
+                print('std dev of data used in fit:', np.std(frame_diff.compressed()))
                 xmin, xmax = plt.xlim()
                 x = np.linspace(xmin, xmax, 1000)
                 y = norm.pdf(x, gmean, gstd)
