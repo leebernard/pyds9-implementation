@@ -10,6 +10,7 @@ filters both reduce illumination, and make the illumination more even.
 from ccd_tools import *
 from astropy.stats import sigma_clip
 from scipy.stats import norm
+from scipy.stats import linregress
 
 
 # retrieve everything from the bias directory, ignoring files that are not fits
@@ -127,7 +128,7 @@ for exposure in sub_dir_filenames:
 
                 # histogram the frame difference
                 plt.figure(exposure[n])
-                plt.hist(frame_diff.compressed(), bins=np.arange(-350.5, 350.5, step=1), density=True)
+                plt.hist(frame_diff.compressed(), bins=np.arange(frame_diff.min(), frame_diff.max(), step=1), density=True)
                 # add the fit of a guassian to this
                 gmean, gstd = norm.fit(frame_diff.compressed())
                 print('norm fit parameters:', gmean, gstd)
@@ -137,10 +138,10 @@ for exposure in sub_dir_filenames:
                 y = norm.pdf(x, gmean, gstd)
                 plt.plot(x, y)
 
-                # histogram one of the frames
-                plt.figure(exposure[n] + 'signal')
-                plt.hist(frame1_data.flatten(), bins=np.arange(-350.5, 350.5, step=1) + 3800)
-                plt.show()
+                # # histogram one of the frames
+                # plt.figure(exposure[n] + 'signal')
+                # plt.hist(frame1_data.flatten(), bins=np.arange(-350.5, 350.5, step=1) + 3800)
+                # plt.show()
 
                 # store signal
                 signal.append(frame_signal)
@@ -155,3 +156,13 @@ plt.scatter(signal, gain)
 
 plt.figure('ptc')
 plt.scatter(signal, variance)
+
+clipped_signal = np.ma.masked_greater(signal, 57000)
+fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
+slope = fitresult[0]
+intercept = fitresult[1]
+xmin, xmax = plt.xlim()
+x = np.linspace(xmin, xmax, 1000)
+y = intercept + slope*x
+plt.plot(x, y)
+
