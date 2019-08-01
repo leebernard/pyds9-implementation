@@ -14,8 +14,8 @@ from astropy.stats import sigma_clip
 Here it is: -60 C
 '''
 
-# use the gain published by Andor for 1MHz, 3.32 e-/ADC
-gain = 3.32
+# use the gain published by Andor for 1MHz, 0.790 e-/ADC
+gain = 0.790
 
 # retrieve everything from the bias directory, ignoring files that are not fits
 bias_path = '/home/lee/Data/darkcurrent_60c/bias_frames'
@@ -33,47 +33,47 @@ bias_mean, bias_median, stacked_bias_stddev = sigma_clipped_frame_stats(bias_fil
 bias_60c = bias_mean[0]
 
 
-# pull the 1800 data
-path_1800 = '/home/lee/Data/darkcurrent_60c/1800s_exposure'
-filenames_1800 = get_filenames(path_1800, extension='.fits')
+# pull the 5400 data
+path_5400 = '/home/lee/Data/darkcurrent_60c/5400s_exposure'
+filenames_5400 = get_filenames(path_5400, extension='.fits')
 
 # print the averages of each frame
-for filename in filenames_1800:
-    with fits.open(path_1800 + '/' + filename) as hdul:
+for filename in filenames_5400:
+    with fits.open(path_5400 + '/' + filename) as hdul:
         print(filename)
         # hdul[0].data
         # print(np.median(hdul[0].data))
         print(np.mean(sigma_clip(hdul[0].data, sigma=5.0)))
 # take the average of the frames, in counts
-darkcurrent_1800_average, _, _ = sigma_clipped_frame_stats(filenames_1800, path=path_1800, sigma=4.0)
+darkcurrent_5400_average, _, _ = sigma_clipped_frame_stats(filenames_5400, path=path_5400, sigma=4.0)
 
 # bias subtract, and then transform to e- from adc
-darkcurrent_1800_average = (darkcurrent_1800_average - bias_60c)*gain
+darkcurrent_5400_average = (darkcurrent_5400_average - bias_60c)*gain
 
 # show the histogram of the average dark current
-plt.figure('dark current histrogram at 1800s, -60c')
-plt.hist(darkcurrent_1800_average.flatten(), bins=120, range=(darkcurrent_1800_average.min(), 2000))
+plt.figure('dark current histrogram at 5400s, -60c')
+plt.hist(darkcurrent_5400_average.flatten(), bins=120, range=(darkcurrent_5400_average.min(), 1000))
 
 # now sigma clip the data, to show the primary
-primary_darkcurrent = sigma_clip(darkcurrent_1800_average, sigma=4.0)
-plt.figure('primary dark current, 1800s, -60c')
-plt.hist(primary_darkcurrent.compressed(), bins=120, range=(darkcurrent_1800_average.min(), 2000))
+primary_darkcurrent = sigma_clip(darkcurrent_5400_average, sigma=4.0)
+plt.figure('primary dark current, 5400s, -60c')
+plt.hist(primary_darkcurrent.compressed(), bins=120, range=(darkcurrent_5400_average.min(), 1000))
 
 # flip the mask, and histogram it
 leftovers = np.ma.array(primary_darkcurrent.data, mask=~primary_darkcurrent.mask)
 plt.figure('what is left over after removing the primary dark current pixels')
-plt.hist(leftovers.compressed(),  bins=120, range=(darkcurrent_1800_average.min(), 2000))
+plt.hist(leftovers.compressed(),  bins=120, range=(darkcurrent_5400_average.min(), 1000))
 
 # clip out the extra stuff.
 secondary_darkcurrent = sigma_clip(leftovers, sigma=2.0)
-plt.figure('secondary dark current, 1800s, -60c')
-plt.hist(secondary_darkcurrent.compressed(),  bins=120, range=(darkcurrent_1800_average.min(), 2000))
+plt.figure('secondary dark current, 5400s, -60c')
+plt.hist(secondary_darkcurrent.compressed(),  bins=120, range=(darkcurrent_5400_average.min(), 2000))
 
-plt.show()
 
-print('average taken at -60c, 1800s exposure')
-print('primary dark current:', np.mean(primary_darkcurrent)/1800)
-print('secondary dark current:', np.mean(secondary_darkcurrent)/1800)
+
+print('average taken at -60c, 5400s exposure')
+print('primary dark current:', np.mean(primary_darkcurrent)/5400)
+print('secondary dark current:', np.mean(secondary_darkcurrent)/5400)
 
 # ratio of primary dc pixels to secondary dc pixels
 # assume area under the gaussian curve is equal to number of pixels
@@ -85,4 +85,6 @@ primary_pixels_total = primary_darkcurrent.count()
 
 print('fraction of pixels that have primary dc value:', primary_pixels_total/secondary_darkcurrent.size)
 print('fraction of pixels that has secondary dc value:', secondary_pixels_total/secondary_darkcurrent.size)
+
+plt.show()
 
