@@ -21,6 +21,7 @@ bias_files = get_filenames(bias_path, extension='.fits')
 bias_mean, bias_median, stacked_bias_stddev = sigma_clipped_frame_stats(bias_files, path=bias_path, sigma=4.0)
 master_bias_frame = bias_mean[0]
 
+
 sub_dir_list = get_filenames(main_path, extension='exposure', include_path=True)
 print(sub_dir_list)  # print to check the output
 
