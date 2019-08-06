@@ -14,7 +14,8 @@ from scipy.stats import linregress
 
 
 # retrieve everything from the bias directory, ignoring files that are not fits
-main_path = '/home/lee/Data/illumination_data_4'
+main_path = '/home/lee/Data/illumination_data_gain1_1MHz'
+# main_path = '/home/lee/Data/illumination_data_gain2_100kHz'
 
 bias_path = main_path + '/bias_frames'
 bias_files = get_filenames(bias_path, extension='.fits')
@@ -43,25 +44,25 @@ clipped_master_bias = sigma_clip(master_bias_frame, sigma=4.0)
 leftovers = np.ma.array(clipped_master_bias.data, mask=~clipped_master_bias.mask)
 print('number of clipped pixels:', leftovers.compressed().size)
 # end of bias calculations
-
-# pull the 5400 data, to make a mask of the bad dark current pixels
-path_5400 = '/home/lee/Data/darkcurrent_60c/5400s_exposure'
-filenames_5400 = get_filenames(path_5400, extension='.fits')
-
-# print the averages of each frame
-for filename in filenames_5400:
-    with fits.open(path_5400 + '/' + filename) as hdul:
-        print(filename)
-        # hdul[0].data
-        # print(np.median(hdul[0].data))
-        print(np.mean(sigma_clip(hdul[0].data, sigma=5.0)))
-# take the average of the frames, in counts
-darkcurrent_5400_average, _, _ = sigma_clipped_frame_stats(filenames_5400, path=path_5400, sigma=4.0)
-# now sigma clip the data, to show the primary
-primary_darkcurrent = sigma_clip(darkcurrent_5400_average, sigma=4.0)
-# pull out the mask
-pixel_mask = primary_darkcurrent.mask
-# end of dark current calculations
+#
+# # pull the 5400 data, to make a mask of the bad dark current pixels
+# path_5400 = '/home/lee/Data/darkcurrent_60c/5400s_exposure'
+# filenames_5400 = get_filenames(path_5400, extension='.fits')
+#
+# # print the averages of each frame
+# for filename in filenames_5400:
+#     with fits.open(path_5400 + '/' + filename) as hdul:
+#         print(filename)
+#         # hdul[0].data
+#         # print(np.median(hdul[0].data))
+#         print(np.mean(sigma_clip(hdul[0].data, sigma=5.0)))
+# # take the average of the frames, in counts
+# darkcurrent_5400_average, _, _ = sigma_clipped_frame_stats(filenames_5400, path=path_5400, sigma=4.0)
+# # now sigma clip the data, to show the primary
+# primary_darkcurrent = sigma_clip(darkcurrent_5400_average, sigma=4.0)
+# # pull out the mask
+# pixel_mask = primary_darkcurrent.mask
+# # end of dark current calculations
 
 # start of main calculations:
 sub_dir_list = get_filenames(main_path, extension='exposure', include_path=True)
@@ -132,9 +133,9 @@ for exposure in sub_dir_filenames:
                 frame1_data = frame1[0].data.astype('float32') - master_bias_frame
                 frame2_data = frame2[0].data.astype('float32') - master_bias_frame
 
-                # mask the data, using the pixel mask generated from the dark current data
-                frame1_data = np.ma.masked_array(frame1_data, pixel_mask)
-                frame2_data = np.ma.masked_array(frame2_data, pixel_mask)
+                # # mask the data, using the pixel mask generated from the dark current data
+                # frame1_data = np.ma.masked_array(frame1_data, pixel_mask)
+                # frame2_data = np.ma.masked_array(frame2_data, pixel_mask)
 
                 # crop the data down to what was selected, and sigma clip it
                 frame1_data = sigma_clip(frame1_data[selection.ymin:selection.ymax, selection.xmin:selection.xmax], sigma=5.0)
@@ -151,17 +152,17 @@ for exposure in sub_dir_filenames:
                 # # display the frame difference
                 # display_data(frame_diff)
 
-                # histogram the frame difference
-                plt.figure(exposure[n])
-                plt.hist(frame_diff.compressed(), bins=np.arange(frame_diff.min(), frame_diff.max(), step=1), density=True)
-                # add the fit of a guassian to this
-                gmean, gstd = norm.fit(frame_diff.compressed())
-                print('norm fit parameters:', gmean, gstd)
-                print('std dev of data used in fit:', np.std(frame_diff.compressed()))
-                xmin, xmax = plt.xlim()
-                x = np.linspace(xmin, xmax, 1000)
-                y = norm.pdf(x, gmean, gstd)
-                plt.plot(x, y)
+                # # histogram the frame difference
+                # plt.figure(exposure[n])
+                # plt.hist(frame_diff.compressed(), bins=np.arange(frame_diff.min(), frame_diff.max(), step=1), density=True)
+                # # add the fit of a guassian to this
+                # gmean, gstd = norm.fit(frame_diff.compressed())
+                # print('norm fit parameters:', gmean, gstd)
+                # print('std dev of data used in fit:', np.std(frame_diff.compressed()))
+                # xmin, xmax = plt.xlim()
+                # x = np.linspace(xmin, xmax, 1000)
+                # y = norm.pdf(x, gmean, gstd)
+                # plt.plot(x, y)
 
                 # # histogram one of the frames
                 # plt.figure(exposure[n] + 'signal')
@@ -173,17 +174,17 @@ for exposure in sub_dir_filenames:
                 # store variance
                 variance.append(frame_var)
                 # store calculated gain, gain=signal/var * sqrt(2)
-                gain.append(frame_signal/frame_var * np.sqrt(2))
+                gain.append(frame_signal/frame_var * 2)
 
 
 plt.figure('gain vs signal')
 plt.scatter(signal, gain)
-plt.ylim(0, 1)
+plt.ylim(0, 4)
 
 plt.figure('ptc')
 plt.scatter(signal, variance)
 
-clipped_signal = np.ma.masked_greater(signal, 57000)
+clipped_signal = np.ma.masked_greater(signal, 27000)
 fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
 slope = fitresult[0]
 intercept = fitresult[1]
@@ -191,4 +192,6 @@ xmin, xmax = plt.xlim()
 x = np.linspace(xmin, xmax, 1000)
 y = intercept + slope*x
 plt.plot(x, y)
+
+measured_gain = 1/slope*2
 
