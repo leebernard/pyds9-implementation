@@ -84,8 +84,8 @@ for filename_list in sub_dir_filenames:
 
 
 # open an instance of DS9, to select a fairly flat region of data
-ds9 = pyds9.DS9(target='display')
 pyds9.ds9_targets()
+ds9 = pyds9.DS9(target='display')
 
 # in DS9, make a box region that avoids the edges of the image, to avoid any sort of trail-off or other edge
 # weirdness. Make sure that this region is flat to within a factor of two
@@ -128,10 +128,15 @@ plt.title('One of the regions, pulled from the stack\n binned from 3500 to 4100'
 variance = []
 signal = []
 gain = []
+exposure_time = []
 for exposure in sub_dir_filenames:
     for n, file in enumerate(exposure):
         with fits.open(exposure[n]) as frame1:
             with fits.open(exposure[n-1]) as frame2:
+                # store the exposure time
+                time = frame1[0].header['exposure']
+                print('integration time:', float(time))
+                exposure_time.append(float(time))
                 # bias subtract the frame
                 frame1_data = frame1[0].data.astype('float32') - master_bias_frame
                 frame2_data = frame2[0].data.astype('float32') - master_bias_frame
@@ -179,13 +184,18 @@ for exposure in sub_dir_filenames:
                 # store calculated gain, gain=signal/var * sqrt(2)
                 gain.append(frame_signal/frame_var * 2)
 
-
 plt.figure('gain vs signal')
 plt.scatter(signal, gain)
 plt.ylim(0, 4)
+plt.title('gain measured from difference frames, as a function of signal from those frames.')
+plt.xlabel('gain (e-/ADC)')
+plt.ylabel('signal from a difference of frames (ADC)')
 
 plt.figure('ptc')
 plt.scatter(signal, variance)
+plt.title('photon transfer curve')
+plt.xlabel('Signal (ADC)')
+plt.ylabel('Variance (ADC)')
 
 clipped_signal = np.ma.masked_greater(signal, 27000)
 fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
@@ -193,8 +203,17 @@ slope = fitresult[0]
 intercept = fitresult[1]
 xmin, xmax = plt.xlim()
 x = np.linspace(xmin, xmax, 1000)
-y = intercept + slope*x
-plt.plot(x, y)
+y = intercept + slope * x
+plt.plot(x, y, label='fit to slope')
+plt.legend()
 
-measured_gain = 1/slope*2
+measured_gain = 1 / slope * 2
+print('Gain measured from slope of ptc:', measured_gain)
 
+plt.figure('exposure time vs signal')
+plt.scatter(exposure_time, np.asarray(signal) * measured_gain)
+plt.title('signal as a function of integration time')
+plt.xlabel('itegration time (s)')
+plt.xscale('log', basex=2)
+plt.ylabel('signal (e-)')
+plt.yscale('log')
