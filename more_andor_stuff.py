@@ -14,8 +14,8 @@ from scipy.stats import linregress
 
 
 # retrieve everything from the bias directory, ignoring files that are not fits
-main_path = '/home/lee/Data/illumination_data_gain1_1MHz'
-# main_path = '/home/lee/Data/illumination_data_gain2_100kHz'
+# main_path = '/home/lee/Data/illumination_data_gain1_1MHz'
+main_path = '/home/lee/Data/illumination_data_gain2_100kHz'
 
 bias_path = main_path + '/bias_frames'
 bias_files = get_filenames(bias_path, extension='.fits')
@@ -30,6 +30,9 @@ print('Stats on', bias_files[0])
 print(sigma_clipped_stats(bias_frame1, sigma=4.0))
 print('stats on', bias_files[5])
 print(sigma_clipped_stats(bias_frame6, sigma=4.0))
+
+# histogram of a bias frame. add to notebook
+plt.hist(bias_frame1.flatten(), bins=np.arange(-50, 50, step=1) + 500)
 
 # calculate a master bias for this temperature
 bias_mean, bias_median, stacked_bias_stddev = sigma_clipped_frame_stats(bias_files, path=bias_path, sigma=4.0)
