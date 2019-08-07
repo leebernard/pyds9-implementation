@@ -124,7 +124,8 @@ def run_gain_analysis(main_path):
     plt.xlabel('Signal (ADC)')
     plt.ylabel('Variance (ADC)')
 
-    # clipped the signal for where the gain deviates. Gain should be about the same for all values
+    # clipped the signal for where the gain deviates.
+    # Gain should be about the same for all values, if it is not, that indicates either saturation or read noise floor
     clipped_gain = sigma_clip(gain, sigma=3.0)
     clipped_signal = np.ma.array(signal, mask=clipped_gain.mask)
     fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
