@@ -52,23 +52,34 @@ darkcurrent_5400_average = (darkcurrent_5400_average - bias_60c)*gain
 
 # show the histogram of the average dark current
 plt.figure('dark current histrogram at 5400s, -60c')
-plt.hist(darkcurrent_5400_average.flatten(), bins=300, range=(darkcurrent_5400_average.min(), 1000))
+plt.hist(darkcurrent_5400_average.flatten(), bins=300, range=(darkcurrent_5400_average.min(), 500))
+plt.title('Histogram of the Dark Current Response')
+plt.xlabel('Signal (e-)')
+plt.ylabel('Number of Pixels')
 
 # now sigma clip the data, to show the primary
 primary_darkcurrent = sigma_clip(darkcurrent_5400_average, sigma=4.0)
 plt.figure('primary dark current, 5400s, -60c')
-plt.hist(primary_darkcurrent.compressed(), bins=300, range=(darkcurrent_5400_average.min(), 1000))
+plt.hist(primary_darkcurrent.compressed(), bins=300, range=(darkcurrent_5400_average.min(), 500))
+plt.title('Primary Dark Current Response')
+plt.xlabel('Signal (e-)')
+plt.ylabel('Number of Pixels')
 
 # flip the mask, and histogram it
 leftovers = np.ma.array(primary_darkcurrent.data, mask=~primary_darkcurrent.mask)
 plt.figure('what is left over after removing the primary dark current pixels')
-plt.hist(leftovers.compressed(),  bins=300, range=(darkcurrent_5400_average.min(), 1000))
+plt.hist(leftovers.compressed(),  bins=300, range=(darkcurrent_5400_average.min(), 500))
+plt.title('Dark current response, after removing the primary dark current')
+plt.xlabel('Signal (e-)')
+plt.ylabel('Number of Pixels')
 
 # clip out the extra stuff.
 secondary_darkcurrent = sigma_clip(leftovers, sigma=2.0)
 plt.figure('secondary dark current, 5400s, -60c')
-plt.hist(secondary_darkcurrent.compressed(),  bins=300, range=(darkcurrent_5400_average.min(), 2000))
-
+plt.hist(secondary_darkcurrent.compressed(),  bins=300, range=(darkcurrent_5400_average.min(), 500))
+plt.title('Secondary Dark Current Response')
+plt.xlabel('Signal (e-)')
+plt.ylabel('Number of Pixels')
 
 
 print('average taken at -60c, 5400s exposure')
