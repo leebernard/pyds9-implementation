@@ -53,7 +53,7 @@ darkcurrent_5400_average = (darkcurrent_5400_average - bias_60c)*gain
 # show the histogram of the average dark current
 plt.figure('dark current histrogram at 5400s, -60c')
 plt.hist(darkcurrent_5400_average.flatten(), bins=300, range=(darkcurrent_5400_average.min(), 500))
-plt.title('Histogram of the Dark Current Response')
+plt.title('Dark Current Response Histogram, -60°C 5400s exposure')
 plt.xlabel('Signal (e-)')
 plt.ylabel('Number of Pixels')
 

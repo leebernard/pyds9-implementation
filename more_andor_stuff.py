@@ -114,7 +114,7 @@ def run_gain_analysis(main_path):
     plt.ylabel('Variance (ADC)')
 
     # clipped the signal to 90% of max signal. This should avoid non-liniarity at near max well, or max adc
-    clipped_signal = np.ma.masked_greater(signal, .9*max(signal))
+    clipped_signal = np.ma.masked_greater(signal, .85*max(signal))
     fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
     slope = fitresult[0]
     intercept = fitresult[1]
@@ -151,36 +151,36 @@ def run_gain_analysis(main_path):
 
 
 # retrieve everything from the bias directory, ignoring files that are not fits
-# data_path = '/home/lee/Data/illumination_data_gain1_1MHz'
-data_path = '/home/lee/Data/illumination_data_gain2_100kHz'
+data_path = '/home/lee/Data/illumination_data_gain1_1MHz'
+# data_path = '/home/lee/Data/illumination_data_gain2_100kHz'
 
 gain = run_gain_analysis(data_path)
 
 
 # check the average of the selected region
 # while I'm at it, extract the data into a list
-region_data = []
-for filename_list in sub_dir_filenames:
-    print('-----------------------------------------------------')
-    print(filename_list)
-    print('Naive Average')
-    for file in filename_list:
-        with fits.open(file) as hdul:
-            # print(np.mean(hdul[0].data))
-            data_frame = hdul[0].data - master_bias_frame
-            selected_data = data_frame[selection.ymin:selection.ymax, selection.xmin:selection.xmax]
-            region_data.append(selected_data)
-            print(np.mean(selected_data))
-
-# check the data for patterns
-region_stack = np.stack(region_data)
-median_region = np.median(region_stack, axis=0)
-plt.figure('median of the region data')
-plt.hist(median_region.flatten(), bins=np.arange(-300.5, 300.5, step=1) + 3801)
-plt.title('Median of the region stack\n binned from 3500.5 to 4100.5')
-plt.figure('median of the region data, different bins')
-plt.hist(median_region.flatten(), bins=np.arange(-300, 300, step=1) + 3800)
-plt.title('Median of the region stack\n binned from 3500 to 4100')
-plt.figure('single region data')
-plt.hist(region_data[0].flatten(), bins=np.arange(-300, 300, step=1) + 3800)
-plt.title('One of the regions, pulled from the stack\n binned from 3500 to 4100')
+# region_data = []
+# for filename_list in sub_dir_filenames:
+#     print('-----------------------------------------------------')
+#     print(filename_list)
+#     print('Naive Average')
+#     for file in filename_list:
+#         with fits.open(file) as hdul:
+#             # print(np.mean(hdul[0].data))
+#             data_frame = hdul[0].data - master_bias_frame
+#             selected_data = data_frame[selection.ymin:selection.ymax, selection.xmin:selection.xmax]
+#             region_data.append(selected_data)
+#             print(np.mean(selected_data))
+#
+# # check the data for patterns
+# region_stack = np.stack(region_data)
+# median_region = np.median(region_stack, axis=0)
+# plt.figure('median of the region data')
+# plt.hist(median_region.flatten(), bins=np.arange(-300.5, 300.5, step=1) + 3801)
+# plt.title('Median of the region stack\n binned from 3500.5 to 4100.5')
+# plt.figure('median of the region data, different bins')
+# plt.hist(median_region.flatten(), bins=np.arange(-300, 300, step=1) + 3800)
+# plt.title('Median of the region stack\n binned from 3500 to 4100')
+# plt.figure('single region data')
+# plt.hist(region_data[0].flatten(), bins=np.arange(-300, 300, step=1) + 3800)
+# plt.title('One of the regions, pulled from the stack\n binned from 3500 to 4100')
