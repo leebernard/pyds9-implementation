@@ -18,17 +18,6 @@ def run_gain_analysis(main_path):
     bias_path = main_path + '/bias_frames'
     bias_files = get_filenames(bias_path, extension='.fits')
 
-    # calculate read noise, from a couple of arbitrary frames
-    with fits.open(bias_path + '/' + bias_files[0]) as bias_hdul:
-        bias_frame1 = bias_hdul[0].data
-    with fits.open(bias_path + '/' + bias_files[5]) as bias_hdul:
-        bias_frame6 = bias_hdul[0].data
-
-    print('Stats on', bias_files[0])
-    print(sigma_clipped_stats(bias_frame1, sigma=4.0))
-    print('stats on', bias_files[5])
-    print(sigma_clipped_stats(bias_frame6, sigma=4.0))
-
     # calculate a master bias for this temperature
     bias_mean, bias_median, stacked_bias_stddev = sigma_clipped_frame_stats(bias_files, path=bias_path, sigma=4.0)
     master_bias_frame = bias_mean[0]
@@ -139,6 +128,21 @@ def run_gain_analysis(main_path):
 
     measured_gain = 1 / slope * 2
     print('Gain measured from slope of ptc:', measured_gain)
+
+    # calculate read noise, from a couple of arbitrary frames
+    with fits.open(bias_path + '/' + bias_files[0]) as bias_hdul:
+        bias_frame1 = bias_hdul[0].data
+    with fits.open(bias_path + '/' + bias_files[5]) as bias_hdul:
+        bias_frame6 = bias_hdul[0].data
+
+    print('mean, median, stddev on', bias_files[0])
+    mean, median, stddev = sigma_clipped_stats(bias_frame1, sigma=4.0)
+    print(mean, median, stddev)
+    print('read noise:', stddev*measured_gain)
+    print('mean, median, stddev on', bias_files[5])
+    mean, median, stddev = sigma_clipped_stats(bias_frame6, sigma=4.0)
+    print(mean, median, stddev)
+    print('read noise:', stddev*measured_gain)
 
     plt.figure('exposure time vs signal')
     plt.scatter(exposure_time, np.asarray(signal) * measured_gain)
