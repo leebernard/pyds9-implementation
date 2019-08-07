@@ -124,7 +124,9 @@ def run_gain_analysis(main_path):
     plt.xlabel('Signal (ADC)')
     plt.ylabel('Variance (ADC)')
 
-    clipped_signal = np.ma.masked_greater(signal, 27000)
+    # clipped the signal for where the gain deviates. Gain should be about the same for all values
+    clipped_gain = sigma_clip(gain, sigma=3.0)
+    clipped_signal = np.ma.array(signal, mask=clipped_gain.mask)
     fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
     slope = fitresult[0]
     intercept = fitresult[1]
