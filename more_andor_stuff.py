@@ -113,7 +113,7 @@ def run_gain_analysis(main_path):
     plt.xlabel('Signal (ADC)')
     plt.ylabel('Variance (ADC)')
 
-    # clipped the signal to 90% of max signal. This should avoid non-liniarity at near max well, or max adc
+    # clipped the signal to 85% of max signal. This should avoid non-liniarity at near max well, or max adc
     clipped_signal = np.ma.masked_greater(signal, .85*max(signal))
     fitresult = linregress(clipped_signal.compressed(), np.ma.array(variance, mask=clipped_signal.mask).compressed())
     slope = fitresult[0]
@@ -142,10 +142,12 @@ def run_gain_analysis(main_path):
     plt.figure('exposure time vs signal')
     plt.scatter(exposure_time, np.asarray(signal) * measured_gain)
     plt.title('signal as a function of integration time')
-    plt.xlabel('itegration time (s)')
-    plt.xscale('log', basex=2)
+    plt.xlabel('integration time (s)')
+    # plt.xscale('log', basex=2)
     plt.ylabel('signal (e-)')
-    plt.yscale('log')
+    # plt.yscale('log')
+
+    plt.show()
 
     return measured_gain
 
