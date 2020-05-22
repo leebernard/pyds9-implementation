@@ -1,10 +1,27 @@
-# pyds9 Implementaion
 
-The module pyds9 is a python interface for using SAOImage DS9. This is a wrapper and extension of 
-pyds9, for use in the UCO Lick CCD lab. The main module is ccd_tools. The primary purpose of this 
-module is for easy extraction of segments of image data from DS9 into a python environment, by 
-detecting regions that have been selected by the user in DS9.  It also provides basic set of tools 
-for statistical analysis. This is all very much a work in progress.
+Introduction
+------------
+
+This ReadMe is an introduction to the ccd_tools module, written for the CCD Lab at UC Santa
+Cruz. The primary purpose of this module is for easy extraction of segments of image data from DS9
+into a python environment, by detecting regions that have been selected by the user in DS9.  It 
+also provides a set of tools for statistical analysis. This ReadMe is intended to introduce 
+users to using this module in a python enviroment, and is written with second year undergrad 
+students in mind: advanced users may want to scroll down to the **Getting Started** section. 
+
+Currently, documentation is availible at https://leebernard.github.io/pyds9-implementation/
+A matching pdf will be added at some point.
+This is all very much a work in progress.
+
+#### pyds9 Implementaion
+
+A large part of this module is a wrapper and extension to the pyds9 module, for use in the UCO Lick
+CCD lab. Pyds9 is the python application programming interface for using SAOImage DS9, and is 
+maintained byEric Mandel of Harvard (https://github.com/ericmandel/pyds9). The ccd_tools module is
+meant to make it easier to use DS9 as a graphical user interface with python programming 
+enviroments. 
+
+#### Statistical Analysis Tools
 
 Some basic tools for statistical analysis have been added. There are now functions for finding 
 average, median, and sigma clipped average frames. The frame average is found by stacking the data
@@ -51,8 +68,8 @@ The result of the frame sub
 See http://hea-www.harvard.edu/RD/pyds9/ for more information on pyds9, including a link to source 
 files on github.
 
-Getting Started
----------------
+# Getting Started
+
 #### Prerequisites
 
 Python 3.6  
